@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply for Loan - AgriFlow</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <%- include('partials/navbar-agriflow') %>
+
+        <!-- Form Section -->
+        <section class="section">
+            <div class="form-container">
+                <h2 class="form-title">🌱 Tell Us About Your Farm</h2>
+                <p class="form-subtitle">यह फॉर्म भरने में सिर्फ 2 मिनट लगेगा / Fill this form in just 2 minutes</p>
+
+                <form method="POST" action="/agriflow/result" onsubmit="return validateForm()">
+
+                    <!-- Name Field -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">👨‍🌾</span>
+                            <span>आपका नाम / Your Name</span>
+                        </label>
+                        <input type="text" id="name" name="name" class="form-control"
+                            placeholder="उदाहरण: राज कुमार / e.g. Raj Kumar" required>
+                        <div class="form-helper">आपका पूरा नाम दर्ज करें</div>
+                    </div>
+
+                    <!-- District Field -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">📍</span>
+                            <span>आपका जिला / Your District</span>
+                        </label>
+                        <input type="text" id="district" name="district" class="form-control"
+                            placeholder="उदाहरण: इंदौर, मध्य प्रदेश / e.g. Indore, M.P." required>
+                        <div class="form-helper">अपने जिले का नाम दर्ज करें</div>
+                    </div>
+
+                    <!-- Crop Selection -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">🌾</span>
+                            <span>मुख्य फसल / Main Crop</span>
+                        </label>
+                        <select id="crop" name="crop" class="form-control" required>
+                            <option value="">-- फसल चुनें / Select Crop --</option>
+                            <option value="धान">🍚 धान / Rice</option>
+                            <option value="गेहूं">🌾 गेहूं / Wheat</option>
+                            <option value="कपास">🌾 कपास / Cotton</option>
+                            <option value="गन्ना">🌾 गन्ना / Sugarcane</option>
+                            <option value="सोयाबीन">🌾 सोयाबीन / Soybean</option>
+                            <option value="मक्का">🌾 मक्का / Maize</option>
+                            <option value="अन्य">❓ अन्य / Other</option>
+                        </select>
+                        <div class="form-helper">आप मुख्य रूप से कौन सी फसल उगाते हैं?</div>
+                    </div>
+
+                    <!-- Land Size -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">🏡</span>
+                            <span>भूमि का आकार / Land Size (एकड़ / acres)</span>
+                        </label>
+                        <input type="number" id="land" name="land" class="form-control" placeholder="उदाहरण: 5 / e.g. 5"
+                            step="0.5" min="0.5" required>
+                        <div class="form-helper">आपके पास कितनी भूमि है? (एकड़ में)</div>
+                    </div>
+
+                    <!-- Loan Amount -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">💳</span>
+                            <span>ऋण की राशि / Loan Amount (₹)</span>
+                        </label>
+                        <input type="number" id="loan" name="loan" class="form-control"
+                            placeholder="उदाहरण: 150000 / e.g. 150000" step="10000" min="50000" required>
+                        <div class="form-helper">आपको कितने रुपये का ऋण चाहिए?</div>
+                    </div>
+
+                    <!-- Loan Duration -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">🗓️</span>
+                            <span>ऋण की अवधि / Loan Duration</span>
+                        </label>
+                        <select id="duration" name="duration" class="form-control" required>
+                            <option value="">-- अवधि चुनें / Select Duration --</option>
+                            <option value="6 months">⏱️ 6 महीने / 6 Months</option>
+                            <option value="12 months">📅 12 महीने / 12 Months</option>
+                            <option value="24 months">📅 24 महीने / 24 Months</option>
+                            <option value="36 months">📅 36 महीने / 36 Months</option>
+                        </select>
+                        <div class="form-helper">आप किस अवधि में ऋण चुकाना चाहते हैं?</div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn-submit">
+                        🚀 मेरी ऋण योजना दिखाएँ / Show My Loan Plan
+                    </button>
+                </form>
+
+                <div style="text-align: center; margin-top: 2rem; color: #666; font-size: 0.95rem;">
+                    <p>💡 आपकी जानकारी सुरक्षित है / Your information is secure</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <%- include('partials/footer-agriflow') %>
+
+            <script src="/js/agriflow.js"></script>
+</body>
+
+</html>

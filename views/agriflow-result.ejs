@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Loan Plan - AgriFlow</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <%- include('partials/navbar-agriflow') %>
+
+        <!-- Result Container -->
+        <section class="result-container">
+
+            <!-- ===== SECTION 1: GREETING CARD ===== -->
+            <div class="greeting-card fade-in">
+                <h2>👋 नमस्ते, <%= farmer.name %>!</h2>
+                <div class="farmer-details">
+                    <p>🌾 फसल: <strong>
+                            <%= farmer.crop %>
+                        </strong>&nbsp;&nbsp;&nbsp; 🏡 भूमि: <strong>
+                            <%= farmer.land %> एकड़
+                        </strong></p>
+                    <p>💳 ऋण: <strong>₹<%= farmer.loan.toLocaleString() %></strong>&nbsp;&nbsp;&nbsp; ⏱️ अवधि: <strong>
+                            <%= farmer.duration %>
+                        </strong></p>
+                    <p>📍 जिला: <strong>
+                            <%= farmer.district %>
+                        </strong></p>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 2: RISK CARD (MOST IMPORTANT) ===== -->
+            <div class="risk-card fade-in risk-<%= farmer.riskLevel.toLowerCase() %>">
+                <div class="risk-emoji">
+                    <%= farmer.riskEmoji %>
+                </div>
+                <h3 class="risk-title">आपका जोखिम स्तर / Your Risk Level: <strong>
+                        <%= farmer.riskLevel %>
+                    </strong></h3>
+
+                <div class="risk-score">
+                    <%= farmer.riskScore %> / 100
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: <%= farmer.riskScore %>%;"></div>
+                </div>
+
+                <div class="risk-explanation">
+                    <% if (farmer.riskLevel==='Low' ) { %>
+                        <p>✅ बहुत अच्छा! आप समय पर ऋण चुकाने की क्षमता रखते हैं। / Great! You are likely to repay your
+                            loan on time.</p>
+                        <% } else if (farmer.riskLevel==='Medium' ) { %>
+                            <p>⚡ सावधान रहें! ऋण लेने से पहले अपने खर्च कम करने की कोशिश करें। / Be careful. Try to
+                                reduce expenses before taking loan.</p>
+                            <% } else { %>
+                                <p>⚠️ उच्च जोखिम! कृपया किसी वित्तीय सलाहकार से बात करें। / High risk. Please talk to a
+                                    financial advisor first.</p>
+                                <% } %>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 3: INFO CARDS ===== -->
+            <div class="info-cards-grid">
+                <!-- Card 1: Monthly EMI -->
+                <div class="info-card fade-in">
+                    <div class="info-icon">📅</div>
+                    <div class="info-value">₹<%= farmer.monthlyEMI.toLocaleString() %>
+                    </div>
+                    <div class="info-label">प्रस्तावित मासिक EMI / Suggested EMI</div>
+                    <div class="info-helper">यह आपकी आय के अनुसार सुविधाजनक है</div>
+                </div>
+
+                <!-- Card 2: Best Sell Month -->
+                <div class="info-card fade-in">
+                    <div class="info-icon">📈</div>
+                    <div class="info-value">
+                        <%= farmer.bestSellMonth %>
+                    </div>
+                    <div class="info-label">फसल बेचने का सर्वोत्तम समय / Best Sell Month</div>
+                    <div class="info-helper">इस महीने में आपको सर्वोच्च कीमत मिलेगी</div>
+                </div>
+
+                <!-- Card 3: Loan Status -->
+                <div class="info-card fade-in">
+                    <div class="info-icon">✅</div>
+                    <div class="info-value">मंजूर!</div>
+                    <div class="info-label">ऋण पात्रता / Loan Eligibility</div>
+                    <div class="info-helper">आप ₹<%= farmer.loan.toLocaleString() %> के ऋण के लिए योग्य हैं</div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 4: INCOME CHART ===== -->
+            <div class="chart-container fade-in" data-income-months="<%= JSON.stringify(farmer.monthlyIncome) %>">
+                <h3 class="chart-title">💰 आपकी अपेक्षित आय - महीना दर महीना / Your Expected Income - Month by Month
+                </h3>
+                <canvas id="incomeChart"></canvas>
+            </div>
+
+            <!-- ===== SECTION 5: EMI TABLE ===== -->
+            <div class="emi-table-container fade-in">
+                <h3 class="emi-table-title">📅 आपकी EMI योजना / Your EMI Plan (12 Months)</h3>
+                <table class="emi-table">
+                    <thead>
+                        <tr>
+                            <th>महीना / Month</th>
+                            <th>आपकी आय / Income</th>
+                            <th>EMI दर / EMI to Pay</th>
+                            <th>प्रतिशत / %</th>
+                            <th>स्थिति / Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% farmer.emiPlan.forEach(plan=> { %>
+                            <tr>
+                                <td><strong>
+                                        <%= plan.monthEng %>
+                                    </strong></td>
+                                <td>₹<%= plan.income.toLocaleString() %>
+                                </td>
+                                <td>₹<%= plan.emi.toLocaleString() %>
+                                </td>
+                                <td>
+                                    <%= plan.percent %>%
+                                </td>
+                                <td>
+                                    <% if (plan.status==='safe' ) { %>
+                                        <span class="emi-status-safe">✅ सुरक्षित / Safe</span>
+                                        <% } else if (plan.status==='medium' ) { %>
+                                            <span class="emi-status-medium">⚡ सावधान / Caution</span>
+                                            <% } else { %>
+                                                <span class="emi-status-high">⚠️ उच्च / High</span>
+                                                <% } %>
+                                </td>
+                            </tr>
+                            <% }); %>
+                    </tbody>
+                </table>
+                <div
+                    style="background: #f9f9f9; padding: 1rem; margin-top: 1rem; border-radius: 0.75rem; font-size: 0.95rem; color: #666;">
+                    <p>💡 <strong>नियम:</strong> EMI आपकी आय का 30% से कम होना चाहिए। / EMI should be less than 30% of
+                        your income.</p>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 6: TIPS FOR FARMER ===== -->
+            <div class="tips-section fade-in">
+                <h2 class="tips-title">💡 आपके लिए सुझाव / Our Suggestions for You</h2>
+                <div class="tips-grid">
+                    <div class="tip-card">
+                        <div class="tip-icon">🌧️</div>
+                        <div class="tip-text">बारिश के मौसम से पहले फसल बीमा कराएँ / Get crop insurance before rainy
+                            season</div>
+                    </div>
+
+                    <div class="tip-card">
+                        <div class="tip-icon">📦</div>
+                        <div class="tip-text">गेहूं को मार्च में बेचें, ज्यादा कीमत मिलेगी / Sell wheat in March for
+                            better price</div>
+                    </div>
+
+                    <div class="tip-card">
+                        <div class="tip-icon">💧</div>
+                        <div class="tip-text">ड्रिप सिंचाई से पानी बचाएँ 40% तक / Drip irrigation saves 40% water</div>
+                    </div>
+
+                    <div class="tip-card">
+                        <div class="tip-icon">💪</div>
+                        <div class="tip-text">समय पर EMI दें, अपना स्कोर सुधारें / Pay EMI on time to improve credit
+                        </div>
+                    </div>
+
+                    <div class="tip-card">
+                        <div class="tip-icon">🤝</div>
+                        <div class="tip-text">किसान समूह से जुड़ें, बेहतर मूल्य पाएँ / Join farmer group for better
+                            prices</div>
+                    </div>
+
+                    <div class="tip-card">
+                        <div class="tip-icon">📞</div>
+                        <div class="tip-text">किसी भी समस्या पर अपने बैंक से बात करें / Talk to bank for any issues
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 7: ACTION BUTTONS ===== -->
+            <div style="margin: 3rem 0; text-align: center;">
+                <div class="action-buttons">
+                    <a href="/agriflow/apply" class="btn-primary">🔁 फिर से जांचें / Check Again</a>
+                    <a href="tel:+919876543210" class="btn-secondary">📞 सलाहकार से बात करें / Talk to Advisor</a>
+                </div>
+            </div>
+
+            <!-- Final Message -->
+            <div
+                style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 2rem; border-radius: 1.5rem; text-align: center; margin: 2rem 0;">
+                <p style="font-size: 1.1rem; color: #1b5e20; font-weight: 600;">
+                    ✅ आपकी ऋण योजना तैयार है! / Your loan plan is ready!
+                </p>
+                <p style="font-size: 1rem; color: #333; margin-top: 0.5rem;">
+                    अब अपने नजदीकी बैंक में जाएँ और आवेदन करें / Visit your nearest bank and apply now
+                </p>
+            </div>
+
+        </section>
+
+        <!-- Footer -->
+        <%- include('partials/footer-agriflow') %>
+
+            <script src="/js/agriflow.js"></script>
+            <script>
+                // Initialize chart when page loads
+                document.addEventListener('DOMContentLoaded', function () {
+                    const incomeDataElement = document.querySelector('[data-income-months]');
+                    if (incomeDataElement) {
+                        const incomeData = JSON.parse(incomeDataElement.dataset.incomeMonths);
+                        initIncomeChart(incomeData);
+                    }
+
+                    // Animate progress bar
+                    const progressFill = document.querySelector('.progress-fill');
+                    if (progressFill) {
+                        const targetWidth = parseFloat(progressFill.style.width);
+                        progressFill.style.width = '0%';
+                        setTimeout(() => {
+                            progressFill.style.transition = 'width 1s ease-out';
+                            progressFill.style.width = targetWidth + '%';
+                        }, 100);
+                    }
+                });
+            </script>
+</body>
+
+</html>

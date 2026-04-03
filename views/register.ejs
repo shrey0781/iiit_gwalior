@@ -1,18 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - AgriFlow</title>
+  <link rel="stylesheet" href="/css/agriflow.css">
 </head>
+
 <body>
-    <form action="/register" method="POST">
-  <input name="name" placeholder="Name" required>
-  <input name="email" placeholder="Email" required>
-  <input name="phone" placeholder="Phone" required>
-  <input name="password" type="password" placeholder="Password" required>
-  <button>Register</button>
-</form>
-<a href="/login">Login</a>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">
+      <span>🌾</span>
+      <h1>AgriFlow</h1>
+    </a>
+
+    <div class="navbar-links">
+      <a href="/">🏠 Home</a>
+    </div>
+  </nav>
+
+  <!-- Register Section -->
+  <section class="section"
+    style="min-height: 85vh; display: flex; align-items: center; justify-content: center; padding: 2rem;">
+    <div class="form-container" style="max-width: 500px;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">👤</div>
+        <h2 class="form-title">नया खाता बनाएँ / Register</h2>
+        <p class="form-subtitle">AgriFlow के साथ शुरुआत करें / Create your account</p>
+      </div>
+
+      <form action="/register" method="POST" onsubmit="return validateRegisterForm()">
+
+        <!-- Name Field -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="form-label-emoji">👨‍🌾</span>
+            <span>आपका नाम / Full Name</span>
+          </label>
+          <input type="text" name="name" class="form-control" placeholder="उदाहरण: राज कुमार / e.g. Raj Kumar" required>
+          <div class="form-helper">आपका पूरा नाम दर्ज करें</div>
+        </div>
+
+        <!-- Email Field -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="form-label-emoji">📧</span>
+            <span>ईमेल / Email</span>
+          </label>
+          <input type="email" name="email" class="form-control" placeholder="example@email.com" required>
+          <div class="form-helper">एक सक्रिय ईमेल पता दर्ज करें</div>
+        </div>
+
+        <!-- Phone Field -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="form-label-emoji">📱</span>
+            <span>फोन नंबर / Phone Number</span>
+          </label>
+          <input type="tel" name="phone" class="form-control" placeholder="10 अंकों का नंबर / 10 digit number"
+            pattern="[0-9]{10}" required>
+          <div class="form-helper">आपका 10 अंकों का फोन नंबर</div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="form-label-emoji">🔑</span>
+            <span>पासवर्ड / Password</span>
+          </label>
+          <input type="password" name="password" class="form-control"
+            placeholder="कम से कम 6 वर्ण / At least 6 characters" required>
+          <div class="form-helper">एक मजबूत पासवर्ड चुनें (अक्षर + संख्या)</div>
+        </div>
+
+        <!-- Terms & Conditions -->
+        <div style="display: flex; align-items: flex-start; margin-bottom: 2rem; gap: 0.75rem;">
+          <input type="checkbox" id="terms" name="terms"
+            style="width: 1.2rem; height: 1.2rem; cursor: pointer; margin-top: 0.2rem; flex-shrink: 0;" required>
+          <label for="terms" style="font-size: 0.95rem; color: #333; cursor: pointer;">
+            मैं <a href="#" style="color: #2e7d32; text-decoration: none; font-weight: 600;">शर्तें और शर्तें</a> सहमत
+            हूँ / I agree to the <a href="#" style="color: #2e7d32; text-decoration: none; font-weight: 600;">Terms</a>
+          </label>
+        </div>
+
+        <!-- Register Button -->
+        <button type="submit" class="btn-submit">
+          ✅ खाता बनाएँ / Create Account
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div style="text-align: center; margin: 2rem 0; color: #999;">
+        <p>या / OR</p>
+      </div>
+
+      <!-- Login Link -->
+      <div style="background: #f5f9f7; padding: 1.5rem; border-radius: 1rem; text-align: center;">
+        <p style="font-size: 1rem; color: #333; margin-bottom: 1rem;">
+          पहले से खाता है? / Already have an account?
+        </p>
+        <a href="/login"
+          style="background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%); color: #1b5e20; padding: 0.75rem 2rem; border-radius: 1rem; text-decoration: none; font-weight: 600; display: inline-block; transition: all 0.3s ease;">
+          🔓 लॉगिन करें / Login
+        </a>
+      </div>
+
+      <!-- Security Message -->
+      <div style="text-align: center; margin-top: 2rem; color: #666; font-size: 0.9rem;">
+        <p>🔒 आपकी जानकारी पूरी तरह सुरक्षित है</p>
+        <p>We use bank-level encryption to protect your data</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <%- include('partials/footer-agriflow') %>
+
+    <script src="/js/agriflow.js"></script>
+    <script>
+      function validateRegisterForm() {
+        const name = document.querySelector('input[name="name"]').value.trim();
+        const email = document.querySelector('input[name="email"]').value.trim();
+        const phone = document.querySelector('input[name="phone"]').value.trim();
+        const password = document.querySelector('input[name="password"]').value;
+        const terms = document.querySelector('input[name="terms"]').checked;
+
+        if (!name) {
+          alert('कृपया अपना नाम दर्ज करें / Please enter your name');
+          return false;
+        }
+
+        if (!email || !email.includes('@')) {
+          alert('कृपया एक सही ईमेल दर्ज करें / Please enter valid email');
+          return false;
+        }
+
+        if (phone.length !== 10 || isNaN(phone)) {
+          alert('कृपया 10 अंकों का फोन नंबर दर्ज करें / Please enter 10 digit phone number');
+          return false;
+        }
+
+        if (password.length < 6) {
+          alert('पासवर्ड कम से कम 6 वर्ण का होना चाहिए / Password must be at least 6 characters');
+          return false;
+        }
+
+        if (!terms) {
+          alert('कृपया शर्तों से सहमत हों / Please agree to terms');
+          return false;
+        }
+
+        return true;
+      }
+    </script>
 </body>
+
 </html>

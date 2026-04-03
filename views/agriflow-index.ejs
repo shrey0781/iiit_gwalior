@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriFlow - Smart Loan Planning for Farmers</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <%- include('partials/navbar-agriflow') %>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>🌾 Smart Loan Planning for Farmers</h1>
+            <p class="hero-subtitle">Know your income. Plan your EMI. Grow without stress.</p>
+            <a href="/agriflow/apply" class="btn-hero">📊 Check My Loan Plan →</a>
+        </section>
+
+        <!-- Features Section -->
+        <section class="section">
+            <h2 class="section-title">✨ What We Offer</h2>
+
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Know Your Income</h3>
+                    <p>See exactly how much money you will earn each month from your crops. Plan better for your
+                        family's needs.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <h3>Plan Your EMI</h3>
+                    <p>Pay less when crops are growing. Pay more after harvest. EMI that matches your real income.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon">✅</div>
+                    <h3>Avoid Loan Trouble</h3>
+                    <p>Know your risk before taking a loan. Stay safe and repay on time without stress.</p>
+                </div>
+
+                <!-- Feature 4 - Weather -->
+                <div class="feature-card" onclick="window.location.href='/agriflow/weather'" style="cursor: pointer;">
+                    <div class="feature-icon">🌤️</div>
+                    <h3>Weather & Soil Info</h3>
+                    <p>Get real-time weather, rainfall predictions, and soil information for your location to plan
+                        better.</p>
+                </div>
+
+                <!-- Feature 5 - AI Chat -->
+                <div class="feature-card" onclick="window.location.href='/agriflow/chat'" style="cursor: pointer;">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI Chat Assistant</h3>
+                    <p>Ask our AI farming expert anything about crops, weather, soil, loans, and farming best practices.
+                    </p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Easy Mobile App</h3>
+                    <p>Simple interface designed for farmers. Big buttons, clear icons, works on any smartphone.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Section -->
+        <section class="section" style="background: white;">
+            <h2 class="section-title">🚀 How It Works (3 Easy Steps)</h2>
+
+            <div class="steps-container">
+                <div class="step">
+                    <div class="step-circle">1</div>
+                    <div class="step-emoji">📝</div>
+                    <p>Tell us about your farm</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-circle">2</div>
+                    <div class="step-emoji">🤖</div>
+                    <p>We check your income & risk</p>
+                </div>
+
+                <div class="step">
+                    <div class="step-circle">3</div>
+                    <div class="step-emoji">📊</div>
+                    <p>Get your personalized loan plan</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Call to Action -->
+        <section class="section">
+            <div
+                style="text-align: center; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 3rem 2rem; border-radius: 1.5rem;">
+                <h2 style="font-size: 2rem; color: #1b5e20; margin-bottom: 1rem;">Ready to Plan Your Loan?</h2>
+                <p style="font-size: 1.2rem; color: #333; margin-bottom: 2rem;">Join thousands of farmers using AgriFlow
+                    to make smarter loan decisions.</p>
+                <a href="/agriflow/apply" class="btn-hero">🌱 Start Now - It's Free!</a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <%- include('partials/footer-agriflow') %>
+
+            <script src="/js/agriflow.js"></script>
+</body>
+
+</html>
