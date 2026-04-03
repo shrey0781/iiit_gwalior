@@ -1,15 +1,215 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Dashboard - AgriFlow</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
 </head>
-<body>
-    <h2>Welcome <%= user.name %></h2>
-<p>Email: <%= user.email %></p>
-<p>Phone: <%= user.phone %></p>
 
-<a href="/logout">Logout</a>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/agriflow" class="navbar-brand">
+            <span>🌾</span>
+            <h1>AgriFlow</h1>
+        </a>
+
+        <div class="navbar-links">
+            <a href="/agriflow">🏠 Home</a>
+            <a href="/agriflow/apply">📋 Apply Loan</a>
+            <a href="/logout" class="btn-apply-nav">🚪 Logout</a>
+        </div>
+    </nav>
+
+    <!-- Dashboard Content -->
+    <section class="result-container" style="min-height: 80vh; padding-top: 3rem;">
+
+        <!-- Welcome Card -->
+        <div class="greeting-card fade-in" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);">
+            <h2 style="fontSize: 2.5rem; color: #1b5e20; margin-bottom: 1rem;">👋 नमस्ते, <%= user.name %>!</h2>
+            <p style="font-size: 1.2rem; color: #333; margin-bottom: 0.5rem;">
+                आपके AgriFlow खाते में आपका स्वागत है
+            </p>
+        </div>
+
+        <!-- User Profile Cards -->
+        <div class="info-cards-grid" style="margin-top: 2rem;">
+            <!-- Card 1: Email -->
+            <div class="info-card fade-in">
+                <div class="info-icon">📧</div>
+                <div class="info-value" style="color: #333; font-size: 1.2rem; word-break: break-all;">
+                    <%= user.email %>
+                </div>
+                <div class="info-label">ईमेल / Email Address</div>
+                <div class="info-helper">आपके खाते से जुड़ import ईमेल</div>
+            </div>
+
+            <!-- Card 2: Phone -->
+            <div class="info-card fade-in">
+                <div class="info-icon">📱</div>
+                <div class="info-value">
+                    <%= user.phone %>
+                </div>
+                <div class="info-label">फोन नंबर / Phone Number</div>
+                <div class="info-helper">हमें संपर्क करने के लिए</div>
+            </div>
+
+            <!-- Card 3: Account Status -->
+            <div class="info-card fade-in">
+                <div class="info-icon">✅</div>
+                <div class="info-value" style="color: #2e7d32;">सक्रिय</div>
+                <div class="info-label">खाता स्थिति / Account Status</div>
+                <div class="info-helper">आपका खाता सक्रिय है</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Section -->
+        <div style="margin: 3rem 0;">
+            <h2 class="section-title">🎯 त्वरित कार्य / Quick Actions</h2>
+
+            <div class="info-cards-grid">
+                <!-- Action 1: Apply for Loan -->
+                <div class="feature-card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;"
+                    onclick="window.location.href='/agriflow/apply'">
+                    <div class="feature-icon">💳</div>
+                    <h3>ऋण के लिए आवेदन करें</h3>
+                    <p>अपनी खेत की जानकारी भरें और तुरंत ऋण योजना प्राप्त करें</p>
+                    <p style="font-weight: 700; color: #2e7d32; margin-top: 1rem;">शुरू करें →</p>
+                </div>
+
+                <!-- Action 2: AI Chat -->
+                <div class="feature-card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;"
+                    onclick="window.location.href='/agriflow/chat'">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI सलाहकार से बात करें</h3>
+                    <p>खेती, मौसम, मिट्टी, और ऋण के बारे में तुरंत सवाल पूछें</p>
+                    <p style="font-weight: 700; color: #2e7d32; margin-top: 1rem;">चैट करें →</p>
+                </div>
+
+                <!-- Action 3: View Loan History -->
+                <div class="feature-card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;"
+                    onclick="alert('आपके ऋण का इतिहास यहाँ दिखेगा')">
+                    <div class="feature-icon">📊</div>
+                    <h3>ऋण का इतिहास</h3>
+                    <p>अपने सभी ऋान आवेदनों और स्थिति को देखें</p>
+                    <p style="font-weight: 700; color: #2e7d32; margin-top: 1rem;">देखें →</p>
+                </div>
+
+                <!-- Action 4: Get Support -->
+                <div class="feature-card" style="text-align: center; cursor: pointer; transition: all 0.3s ease;"
+                    onclick="alert('सहायता के लिए हमसे संपर्क करें: 1800-AGRIFLOW')">
+                    <div class="feature-icon">📞</div>
+                    <h3>सहायता प्राप्त करें</h3>
+                    <p>किसी भी समस्या के लिए हमारी टीम आपकी मदद के लिए तैयार है</p>
+                    <p style="font-weight: 700; color: #2e7d32; margin-top: 1rem;">संपर्क करें →</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Information Section -->
+        <div style="margin: 3rem 0;">
+            <h2 class="section-title">ℹ️ खाता जानकारी / Account Information</h2>
+
+            <div class="emi-table-container" style="box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);">
+                <table class="emi-table">
+                    <tbody>
+                        <tr>
+                            <td style="background: #f5f9f7; font-weight: 700; color: #1b5e20; width: 40%;">नाम / Name
+                            </td>
+                            <td>
+                                <%= user.name %>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background: #f5f9f7; font-weight: 700; color: #1b5e20;">ईमेल / Email</td>
+                            <td>
+                                <%= user.email %>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background: #f5f9f7; font-weight: 700; color: #1b5e20;">फोन / Phone</td>
+                            <td>
+                                <%= user.phone %>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="background: #f5f9f7; font-weight: 700; color: #1b5e20;">खाता स्थिति / Status</td>
+                            <td><span class="emi-status-safe">✅ सक्रिय / Active</span></td>
+                        </tr>
+                        <tr>
+                            <td style="background: #f5f9f7; font-weight: 700; color: #1b5e20;">सदस्यता / Member Since
+                            </td>
+                            <td>2025</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tips & Resources -->
+        <div style="margin: 3rem 0;">
+            <h2 class="section-title">💡 उपयोगी सुझाव / Tips & Resources</h2>
+
+            <div class="tips-grid">
+                <div class="tip-card">
+                    <div class="tip-icon">🌾</div>
+                    <div class="tip-text">अपनी फसल का सही विवरण दें ताकि हमें आपके के लिए सही ऋण मिल सके</div>
+                </div>
+
+                <div class="tip-card">
+                    <div class="tip-icon">📈</div>
+                    <div class="tip-text">समय पर EMI का भुगतान करें अपने क्रेडिट स्कोर को बेहतर रखने के लिए</div>
+                </div>
+
+                <div class="tip-card">
+                    <div class="tip-icon">🔒</div>
+                    <div class="tip-text">अपना पासवर्ड हमेशा गोपनीय रखें और किसी से साझा न करें</div>
+                </div>
+
+                <div class="tip-card">
+                    <div class="tip-icon">💳</div>
+                    <div class="tip-text">अपनी खाता जानकारी नियमित रूप से अपडेट करते रहें</div>
+                </div>
+
+                <div class="tip-card">
+                    <div class="tip-icon">📞</div>
+                    <div class="tip-text">किसी भी समस्या के लिए हमारी 24/7 ग्राहक सेवा से संपर्क करें</div>
+                </div>
+
+                <div class="tip-card">
+                    <div class="tip-icon">✅</div>
+                    <div class="tip-text">अपने ऋण की प्रक्रिया को ट्रैक करते रहें आसानी से</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="margin: 3rem 0; text-align: center;">
+            <div class="action-buttons">
+                <a href="/agriflow/apply" class="btn-primary">📋 नया ऋण आवेदन / Apply Loan</a>
+                <a href="/logout" class="btn-secondary">🚪 लॉगआउट / Logout</a>
+            </div>
+        </div>
+
+        <!-- Footer Note -->
+        <div
+            style="background: #f5f9f7; padding: 2rem; border-radius: 1.5rem; text-align: center; margin-bottom: 2rem;">
+            <p style="font-size: 1.1rem; color: #1b5e20; font-weight: 600;">
+                💚 AgriFlow - भारतीय किसानों के लिए स्मार्ट ऋण समाधान
+            </p>
+            <p style="font-size: 0.95rem; color: #666; margin-top: 0.5rem;">
+                Smart Loan Solutions for Indian Farmers
+            </p>
+        </div>
+
+    </section>
+
+    <!-- Footer -->
+    <%- include('partials/footer-agriflow') %>
+
+        <script src="/js/agriflow.js"></script>
 </body>
+
 </html>

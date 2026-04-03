@@ -1,16 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - AgriFlow</title>
+  <link rel="stylesheet" href="/css/agriflow.css">
 </head>
+
 <body>
-    <form action="/login" method="POST">
-  <input name="email" placeholder="Email" required>
-  <input name="password" type="password" placeholder="Password" required>
-  <button>Login</button>
-</form>
-<a href="/register">Register</a>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">
+      <span>🌾</span>
+      <h1>AgriFlow</h1>
+    </a>
+
+    <div class="navbar-links">
+      <a href="/">🏠 Home</a>
+    </div>
+  </nav>
+
+  <!-- Login Section -->
+  <section class="section" style="min-height: 80vh; display: flex; align-items: center; justify-content: center;">
+    <div class="form-container" style="max-width: 450px;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">🔐</div>
+        <h2 class="form-title">आपका खाता खोलें / Login</h2>
+        <p class="form-subtitle">अपने खाते में प्रवेश करें</p>
+      </div>
+
+      <form action="/login" method="POST" onsubmit="return validateLoginForm()">
+
+        <!-- Email/Username Field -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="form-label-emoji">📧</span>
+            <span>ईमेल या फोन / Email or Phone</span>
+          </label>
+          <input type="text" name="email" class="form-control" placeholder="example@email.com या 9876543210" required>
+          <div class="form-helper">आप जो खाता बनाते समय दर्ज किए थे</div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="form-group">
+          <label class="form-label">
+            <span class="form-label-emoji">🔑</span>
+            <span>पासवर्ड / Password</span>
+          </label>
+          <input type="password" name="password" class="form-control" placeholder="अपना पासवर्ड दर्ज करें" required>
+          <div class="form-helper">6 से अधिक वर्ण</div>
+        </div>
+
+        <!-- Remember Me -->
+        <div style="display: flex; align-items: center; margin-bottom: 2rem;">
+          <input type="checkbox" id="rememberMe" name="rememberMe"
+            style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+          <label for="rememberMe" style="margin-left: 0.5rem; font-size: 1rem; color: #333; cursor: pointer;">
+            मुझे याद रखें / Remember me
+          </label>
+        </div>
+
+        <!-- Login Button -->
+        <button type="submit" class="btn-submit">
+          🔓 लॉगिन करें / Login
+        </button>
+
+        <!-- Forgot Password -->
+        <div style="text-align: center; margin-top: 1.5rem;">
+          <a href="#" style="color: #2e7d32; text-decoration: none; font-weight: 600; font-size: 0.95rem;">
+            पासवर्ड भूल गए? / Forgot Password?
+          </a>
+        </div>
+      </form>
+
+      <!-- Divider -->
+      <div style="text-align: center; margin: 2rem 0; color: #999;">
+        <p>या / OR</p>
+      </div>
+
+      <!-- Register Link -->
+      <div style="background: #f5f9f7; padding: 1.5rem; border-radius: 1rem; text-align: center;">
+        <p style="font-size: 1rem; color: #333; margin-bottom: 1rem;">
+          अभी खाता नहीं है? / Don't have an account?
+        </p>
+        <a href="/register"
+          style="background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%); color: white; padding: 0.75rem 2rem; border-radius: 1rem; text-decoration: none; font-weight: 600; display: inline-block; transition: all 0.3s ease;">
+          👤 नया खाता बनाएँ / Create Account
+        </a>
+      </div>
+
+      <!-- Security Message -->
+      <div style="text-align: center; margin-top: 2rem; color: #666; font-size: 0.9rem;">
+        <p>🔒 आपकी जानकारी पूरी तरह सुरक्षित है</p>
+        <p>Your information is 100% secure and encrypted</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <%- include('partials/footer-agriflow') %>
+
+    <script src="/js/agriflow.js"></script>
+    <script>
+      function validateLoginForm() {
+        const email = document.querySelector('input[name="email"]').value.trim();
+        const password = document.querySelector('input[name="password"]').value;
+
+        if (!email) {
+          alert('कृपया ईमेल या फोन दर्ज करें / Please enter email or phone');
+          return false;
+        }
+
+        if (password.length < 6) {
+          alert('पासवर्ड कम से कम 6 वर्ण का होना चाहिए / Password must be at least 6 characters');
+          return false;
+        }
+
+        return true;
+      }
+    </script>
 </body>
+
 </html>

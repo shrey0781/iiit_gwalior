@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather & Soil Info - AgriFlow</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <%- include('partials/navbar-agriflow') %>
+
+        <!-- Weather Container -->
+        <section class="result-container" style="min-height: 80vh; padding-top: 2rem;">
+
+            <!-- ===== SECTION 1: LOCATION HEADER ===== -->
+            <div class="greeting-card fade-in">
+                <h2>📍 आपका स्थान / Your Location</h2>
+                <div class="farmer-details">
+                    <p><strong>
+                            <%= weatherData.location.city %>
+                        </strong>, <%= weatherData.location.state %>
+                    </p>
+                    <p>📌 जिला / District: <strong>
+                            <%= weatherData.location.district %>
+                        </strong></p>
+                    <p>🧭 Coordinates: <%= weatherData.location.latitude.toFixed(4) %>, <%=
+                                weatherData.location.longitude.toFixed(4) %>
+                    </p>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 2: CURRENT WEATHER ===== -->
+            <div style="margin: 2rem 0;">
+                <h2 class="section-title">🌤️ आज का मौसम / Current Weather</h2>
+
+                <div class="info-cards-grid">
+                    <!-- Temperature Card -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">🌡️</div>
+                        <div class="info-value">
+                            <%= weatherData.weather.temperature %>°C
+                        </div>
+                        <div class="info-label">तापमान / Temperature</div>
+                        <div class="info-helper">महसूस होता है / Feels like <%= weatherData.weather.feelsLike %>°C</div>
+                    </div>
+
+                    <!-- Weather Condition Card -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">⛅</div>
+                        <div class="info-value" style="font-size: 1.4rem; color: #333;">
+                            <%= weatherData.weather.condition %>
+                        </div>
+                        <div class="info-label">मौसम स्थिति / Condition</div>
+                        <div class="info-helper">अभी काफी हल्का हवा है</div>
+                    </div>
+
+                    <!-- Humidity Card -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">💧</div>
+                        <div class="info-value">
+                            <%= weatherData.weather.humidity %>%
+                        </div>
+                        <div class="info-label">नमी / Humidity</div>
+                        <div class="info-helper">हवा में नमी का स्तर</div>
+                    </div>
+
+                    <!-- Wind Speed Card -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">💨</div>
+                        <div class="info-value">
+                            <%= weatherData.weather.windSpeed %> km/h
+                        </div>
+                        <div class="info-label">हवा की गति / Wind Speed</div>
+                        <div class="info-helper">हल्की हवा चल रही है</div>
+                    </div>
+
+                    <!-- UV Index Card -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">☀️</div>
+                        <div class="info-value">
+                            <%= weatherData.weather.uvIndex %>
+                        </div>
+                        <div class="info-label">UV इंडेक्स / UV Index</div>
+                        <div class="info-helper">बहुत अधिक सूरज की रोशनी</div>
+                    </div>
+
+                    <!-- Visibility Card -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">👁️</div>
+                        <div class="info-value">
+                            <%= weatherData.weather.visibility %> km
+                        </div>
+                        <div class="info-label">दृश्यता / Visibility</div>
+                        <div class="info-helper">आसमान साफ़ दिख रहा है</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 3: RAINFALL INFORMATION ===== -->
+            <div style="margin: 2rem 0;">
+                <h2 class="section-title">🌧️ बारिश की जानकारी / Rainfall Information</h2>
+
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                    <!-- Today -->
+                    <div class="feature-card">
+                        <div class="feature-icon">📅</div>
+                        <h3>आज</h3>
+                        <p style="font-size: 2rem; font-weight: 700; color: #2e7d32; margin: 1rem 0;">
+                            <%= weatherData.rainfall.today %>mm
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">आज बारिश का अनुमान</p>
+                    </div>
+
+                    <!-- This Week -->
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>इस हफ्ते</h3>
+                        <p style="font-size: 2rem; font-weight: 700; color: #2e7d32; margin: 1rem 0;">
+                            <%= weatherData.rainfall.thisWeek %>mm
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">कुल बारिश का रिकॉर्ड</p>
+                    </div>
+
+                    <!-- This Month -->
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <h3>इस महीने</h3>
+                        <p style="font-size: 2rem; font-weight: 700; color: #2e7d32; margin: 1rem 0;">
+                            <%= weatherData.rainfall.thisMonth %>mm
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">महीने भर की बारिश</p>
+                    </div>
+
+                    <!-- Last Month -->
+                    <div class="feature-card">
+                        <div class="feature-icon">📉</div>
+                        <h3>पिछले महीने</h3>
+                        <p style="font-size: 2rem; font-weight: 700; color: #2e7d32; margin: 1rem 0;">
+                            <%= weatherData.rainfall.lastMonth %>mm
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">तुलनात्मक डेटा</p>
+                    </div>
+                </div>
+
+                <!-- 5-Day Rainfall Forecast -->
+                <div class="emi-table-container fade-in">
+                    <h3 class="emi-table-title">☔ अगले 5 दिनों की बारिश / 5-Day Rainfall Forecast</h3>
+                    <table class="emi-table">
+                        <thead>
+                            <tr>
+                                <th>दिन / Day</th>
+                                <th>बारिश / Rainfall</th>
+                                <th>संभावना / Chance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% weatherData.rainfall.forecast.forEach(day=> { %>
+                                <tr>
+                                    <td><strong>
+                                            <%= day.day %>
+                                        </strong></td>
+                                    <td>
+                                        <%= day.rainfall %>
+                                    </td>
+                                    <td>
+                                        <% if (day.chance>= 50) { %>
+                                            <span class="emi-status-high">⚠️ <%= day.chance %></span>
+                                            <% } else if (day.chance>= 30) { %>
+                                                <span class="emi-status-medium">⚡ <%= day.chance %></span>
+                                                <% } else { %>
+                                                    <span class="emi-status-safe">✅ <%= day.chance %></span>
+                                                    <% } %>
+                                    </td>
+                                </tr>
+                                <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 4: SOIL INFORMATION ===== -->
+            <div style="margin: 2rem 0;">
+                <h2 class="section-title">🌱 मिट्टी की जानकारी / Soil Information</h2>
+
+                <!-- Soil Properties Cards -->
+                <div class="info-cards-grid">
+                    <!-- Soil Type -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">🏞️</div>
+                        <div class="info-value" style="font-size: 1.2rem; color: #333;">
+                            <%= weatherData.soil.type %>
+                        </div>
+                        <div class="info-label">मिट्टी का प्रकार / Soil Type</div>
+                        <div class="info-helper">अच्छी उर्वरता वाली मिट्टी</div>
+                    </div>
+
+                    <!-- pH Level -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">⚖️</div>
+                        <div class="info-value">
+                            <%= weatherData.soil.pH %>
+                        </div>
+                        <div class="info-label">pH स्तर / pH Level</div>
+                        <div class="info-helper">तटस्थ (अच्छा संकेत)</div>
+                    </div>
+
+                    <!-- Texture -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">📏</div>
+                        <div class="info-value" style="font-size: 1.2rem; color: #333;">
+                            <%= weatherData.soil.texture %>
+                        </div>
+                        <div class="info-label">मिट्टी की बनावट / Texture</div>
+                        <div class="info-helper">दोमट मिट्टी - सर्वश्रेष्ठ</div>
+                    </div>
+
+                    <!-- Fertility -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">✨</div>
+                        <div class="info-value" style="font-size: 1.2rem; color: #2e7d32;">
+                            <%= weatherData.soil.fertility %>
+                        </div>
+                        <div class="info-label">उर्वरता / Fertility</div>
+                        <div class="info-helper">फसल उगाने के लिए अनुकूल</div>
+                    </div>
+
+                    <!-- Organic Matter -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">🍃</div>
+                        <div class="info-value">
+                            <%= weatherData.soil.organic_matter %>
+                        </div>
+                        <div class="info-label">जैविक पदार्थ / Organic Matter</div>
+                        <div class="info-helper">अच्छी मात्रा में उपस्थित</div>
+                    </div>
+
+                    <!-- Color -->
+                    <div class="info-card fade-in">
+                        <div class="info-icon">🎨</div>
+                        <div class="info-value" style="font-size: 1.2rem; color: #333;">
+                            <%= weatherData.soil.color %>
+                        </div>
+                        <div class="info-label">रंग / Color</div>
+                        <div class="info-helper">भूरी मिट्टी - स्वस्थ संकेत</div>
+                    </div>
+                </div>
+
+                <!-- Soil Nutrient Levels -->
+                <div class="emi-table-container fade-in" style="margin-top: 2rem;">
+                    <h3 class="emi-table-title">🧪 पोषक तत्वों का स्तर / Nutrient Levels</h3>
+                    <table class="emi-table">
+                        <thead>
+                            <tr>
+                                <th>पोषक तत्व / Nutrient</th>
+                                <th>स्तर / Level</th>
+                                <th>स्थिति / Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>नाइट्रोजन / Nitrogen (N)</strong></td>
+                                <td>
+                                    <%= weatherData.soil.nitrogen %>
+                                </td>
+                                <td><span class="emi-status-safe">✅ अच्छा</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>फॉस्फोरस / Phosphorus (P)</strong></td>
+                                <td>
+                                    <%= weatherData.soil.phosphorus %>
+                                </td>
+                                <td><span class="emi-status-medium">⚡ माध्यम</span></td>
+                            </tr>
+                            <tr>
+                                <td><strong>पोटेशियम / Potassium (K)</strong></td>
+                                <td>
+                                    <%= weatherData.soil.potassium %>
+                                </td>
+                                <td><span class="emi-status-medium">⚡ माध्यम</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Soil Recommendations -->
+                <div style="margin-top: 2rem;">
+                    <h3 class="tips-title">💡 मिट्टी के लिए सुझाव / Soil Recommendations</h3>
+                    <div class="tips-grid">
+                        <% weatherData.soil.recommendations.forEach(rec=> { %>
+                            <div class="tip-card">
+                                <div class="tip-icon">✓</div>
+                                <div class="tip-text">
+                                    <%= rec %>
+                                </div>
+                            </div>
+                            <% }); %>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 5: CURRENT SEASON & BEST CROPS ===== -->
+            <div style="margin: 2rem 0;">
+                <h2 class="section-title">🌾 वर्तमान सीजन व अनुकूल फसलें / Current Season & Best Crops</h2>
+
+                <div class="features-grid">
+                    <!-- Season -->
+                    <div class="feature-card">
+                        <div class="feature-icon">📅</div>
+                        <h3>वर्तमान सीजन / Current Season</h3>
+                        <p style="font-size: 1.8rem; font-weight: 700; color: #2e7d32; margin: 1rem 0;">
+                            <%= weatherData.season.current %>
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">यह सीजन अभी चल रहा है</p>
+                    </div>
+
+                    <!-- Water Needs -->
+                    <div class="feature-card">
+                        <div class="feature-icon">💧</div>
+                        <h3>जल की आवश्यकता / Water Needs</h3>
+                        <p style="font-size: 1.8rem; font-weight: 700; color: #2e7d32; margin: 1rem 0;">
+                            <%= weatherData.season.waterNeeds %>
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">नियमित सिंचाई की जरूरत है</p>
+                    </div>
+
+                    <!-- Best Crops -->
+                    <div class="feature-card">
+                        <div class="feature-icon">🌱</div>
+                        <h3>इस मौसम में उत्तम फसलें / Best Crops</h3>
+                        <ul style="color: #333; font-size: 1rem; text-align: left; padding-left: 1.5rem;">
+                            <% weatherData.season.bestCrops.forEach(crop=> { %>
+                                <li style="margin-bottom: 0.5rem; font-weight: 500;">✓ <%= crop %>
+                                </li>
+                                <% }); %>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== SECTION 6: AIR QUALITY ===== -->
+            <div style="margin: 2rem 0;">
+                <h2 class="section-title">🌬️ वायु गुणवत्ता / Air Quality Index</h2>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                    <!-- AQI Status -->
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3>AQI स्तर / AQI Level</h3>
+                        <p style="font-size: 2rem; font-weight: 700; color: #ff9800; margin: 1rem 0;">
+                            <%= weatherData.airQuality.index %>
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">
+                            <%= weatherData.airQuality.level %>
+                        </p>
+                    </div>
+
+                    <!-- PM2.5 -->
+                    <div class="feature-card">
+                        <div class="feature-icon">💨</div>
+                        <h3>PM2.5</h3>
+                        <p style="font-size: 2rem; font-weight: 700; color: #ff9800; margin: 1rem 0;">
+                            <%= weatherData.airQuality.pm25 %>
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">सूक्ष्म कण</p>
+                    </div>
+
+                    <!-- PM10 -->
+                    <div class="feature-card">
+                        <div class="feature-icon">🏭</div>
+                        <h3>PM10</h3>
+                        <p style="font-size: 2rem; font-weight: 700; color: #ff9800; margin: 1rem 0;">
+                            <%= weatherData.airQuality.pm10 %>
+                        </p>
+                        <p style="color: #666; font-size: 0.95rem;">बड़े कण</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== ACTION BUTTONS ===== -->
+            <div style="margin: 3rem 0; text-align: center;">
+                <div class="action-buttons">
+                    <a href="/agriflow/apply" class="btn-primary">📋 ऋण के लिए आवेदन करें / Apply for Loan</a>
+                    <a href="/agriflow" class="btn-secondary">🏠 होम पर वापस जाएँ / Back to Home</a>
+                </div>
+            </div>
+
+            <!-- Weather Notice -->
+            <div
+                style="background: #fff3e0; padding: 1.5rem; border-radius: 1rem; border-left: 4px solid #ff9800; margin-bottom: 2rem;">
+                <p style="font-size: 1.1rem; color: #e65100; font-weight: 600; margin-bottom: 0.5rem;">ℹ️ महत्वपूर्ण
+                    सूचना / Important Notice</p>
+                <p style="color: #333; font-size: 0.95rem;">
+                    यह जानकारी आपके मौजूदा स्थान के आधार पर प्रदान की जा रही है। सटीक मौसम की जानकारी के लिए स्थानीय
+                    मौसम विज्ञान विभाग की जांच करें।
+                </p>
+                <p style="color: #333; font-size: 0.95rem; margin-top: 0.5rem;">
+                    This information is based on your current location. Check local meteorological department for
+                    accurate weather updates.
+                </p>
+            </div>
+
+        </section>
+
+        <!-- Footer -->
+        <%- include('partials/footer-agriflow') %>
+
+            <script src="/js/agriflow.js"></script>
+            <script>
+                // Get user's geolocation on page load
+                document.addEventListener('DOMContentLoaded', function () {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            function (position) {
+                                const lat = position.coords.latitude;
+                                const lon = position.coords.longitude;
+                                console.log(`User location: ${lat}, ${lon}`);
+                                // You can fetch real weather data here
+                                // fetch(`/api/weather?latitude=${lat}&longitude=${lon}`)
+                            },
+                            function (error) {
+                                console.log('Geolocation error:', error.message);
+                            }
+                        );
+                    }
+                });
+            </script>
+</body>
+
+</html>

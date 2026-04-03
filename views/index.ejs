@@ -1,11 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=], initial-scale=1.0">
-    <title>Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - AgriFlow</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
 </head>
+
 <body>
-    <a href="/login">login</a>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">
+            <span>🌾</span>
+            <h1>AgriFlow</h1>
+        </a>
+
+        <div class="navbar-links">
+            <a href="/login" class="btn-apply-nav">🔐 Login</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>🌾 Welcome to AgriFlow</h1>
+        <p class="hero-subtitle">India's #1 Smart Loan Planning Platform for Farmers</p>
+        <p style="font-size: 1.2rem; color: #c8e6c9; margin-bottom: 2rem;">Your trusted partner in agricultural growth
+        </p>
+
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+            <a href="/register" class="btn-hero" style="background-color: #ffc107;">👤 Create Account</a>
+            <a href="/login" class="btn-hero" style="background-color: #4caf50; color: white;">🔓 Login</a>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section">
+        <h2 class="section-title">✨ Why Choose AgriFlow?</h2>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>Simple Interface</h3>
+                <p>Designed for farmers with any digital literacy level. Big text, clear icons, easy navigation.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🧠</div>
+                <h3>AI-Powered Analysis</h3>
+                <p>Our advanced AI analyzes your farm data to provide personalized loan recommendations.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>100% Secure</h3>
+                <p>Your data is encrypted and secure. We never share your information with third parties.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">💳</div>
+                <h3>Flexible EMI Plans</h3>
+                <p>EMI that matches your seasonal income. Pay less during off-season, more during harvest.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">24/7</div>
+                <h3>Always Available</h3>
+                <p>Access your loan information anytime, anywhere. 24/7 customer support via phone or chat.</p>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">✅</div>
+                <h3>Trusted by Banks</h3>
+                <p>Partnered with leading banks and financial institutions across India.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="section" style="background: white;">
+        <div
+            style="text-align: center; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); padding: 4rem 2rem; border-radius: 1.5rem;">
+            <h2 style="font-size: 2.2rem; color: #1b5e20; margin-bottom: 1rem; font-weight: 800;">Ready to Grow Your
+                Farm?</h2>
+            <p style="font-size: 1.2rem; color: #333; margin-bottom: 2rem;">Join 50,000+ farmers already using AgriFlow
+            </p>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+                <a href="/register" class="btn-hero" style="background-color: #ffc107;">🚀 Get Started Now</a>
+                <a href="/agriflow" class="btn-hero" style="background-color: #4caf50; color: white;">📊 Try Demo</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <%- include('partials/footer-agriflow') %>
+
+        <script src="/js/agriflow.js"></script>
 </body>
+
 </html>
