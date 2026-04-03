@@ -19,6 +19,10 @@ app.use(session({
   saveUninitialized: true
 }));
 
+app.get("/",(req,res)=>{
+    res.render("index")
+})
+
 app.use("/", authRoutes);
 
 app.listen(3000, () => {
