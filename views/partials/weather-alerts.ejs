@@ -1,0 +1,526 @@
+<!-- Smart Weather Alerts UI -->
+<div id="weatherAlertsContainer" class="weather-alerts-section">
+    <div class="alerts-loading" id="alertsLoading">
+        <div class="spinner">💫</div>
+        <p>सतर्कताएं लोड हो रही हैं... Loading alerts...</p>
+    </div>
+
+    <div id="alertsContent" style="display: none;">
+        <!-- Alert Priority Banner -->
+        <div id="priorityBanner" class="priority-banner" style="display: none;">
+            <div class="priority-content">
+                <span id="priorityIcon" class="priority-icon"></span>
+                <div class="priority-text">
+                    <h3 id="priorityTitle">Action Priority</h3>
+                    <p id="priorityMessage">Message</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Grid -->
+        <div class="alerts-grid" id="alertsGrid">
+            <!-- Alerts will be inserted here -->
+        </div>
+
+        <!-- Crop Recommendation -->
+        <div class="crop-recommendation" id="cropRecommendation" style="display: none;">
+            <div class="recommendation-header">
+                <span class="rec-icon">🌾</span>
+                <h3>फसल के लिए सुझाव / Crop Recommendation</h3>
+            </div>
+            <p id="recommendationText"></p>
+        </div>
+    </div>
+</div>
+
+<style>
+    .weather-alerts-section {
+        margin: 2rem 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .alerts-loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+
+    .spinner {
+        font-size: 48px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 10px;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Priority Banner */
+    .priority-banner {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        animation: slideDown 0.5s ease;
+    }
+
+    .priority-banner.urgent {
+        background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    }
+
+    .priority-banner.warning {
+        background: linear-gradient(135deg, #f57c00 0%, #e65100 100%);
+    }
+
+    .priority-banner.normal {
+        background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .priority-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        width: 100%;
+    }
+
+    .priority-icon {
+        font-size: 32px;
+    }
+
+    .priority-text h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .priority-text p {
+        margin: 5px 0 0 0;
+        font-size: 14px;
+        opacity: 0.95;
+    }
+
+    /* Alerts Grid */
+    .alerts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+
+    .alert-card {
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        border-left: 6px solid;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .alert-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Alert Severity Colors */
+    .alert-card.danger {
+        background-color: #ffebee;
+        border-left-color: #d32f2f;
+    }
+
+    .alert-card.warning {
+        background-color: #fff3e0;
+        border-left-color: #f57c00;
+    }
+
+    .alert-card.normal {
+        background-color: #e8f5e9;
+        border-left-color: #388e3c;
+    }
+
+    .alert-card.info {
+        background-color: #e3f2fd;
+        border-left-color: #1976d2;
+    }
+
+    /* Alert Card Content */
+    .alert-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .alert-icon {
+        font-size: 32px;
+        line-height: 1;
+    }
+
+    .alert-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+        color: #333;
+    }
+
+    .alert-message {
+        font-size: 14px;
+        color: #555;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .alert-recommendation {
+        background: rgba(255, 255, 255, 0.7);
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #333;
+        line-height: 1.6;
+    }
+
+    .alert-recommendation strong {
+        display: block;
+        color: #1b5e20;
+        margin-bottom: 6px;
+        font-weight: 600;
+    }
+
+    .alert-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        color: #999;
+        margin-top: 8px;
+    }
+
+    /* Crop Recommendation */
+    .crop-recommendation {
+        background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+        border: 2px solid #4caf50;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 30px;
+    }
+
+    .recommendation-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 15px;
+    }
+
+    .rec-icon {
+        font-size: 28px;
+    }
+
+    .recommendation-header h3 {
+        margin: 0;
+        color: #1b5e20;
+        font-size: 18px;
+    }
+
+    .crop-recommendation p {
+        margin: 0;
+        color: #333;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    /* Alert Badge */
+    .alert-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .alert-badge.critical {
+        background: #d32f2f;
+        color: white;
+    }
+
+    .alert-badge.warning {
+        background: #f57c00;
+        color: white;
+    }
+
+    .alert-badge.normal {
+        background: #388e3c;
+        color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .alerts-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .priority-content {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .priority-banner {
+            padding: 15px;
+        }
+
+        .alert-card {
+            padding: 15px;
+        }
+
+        .alert-title {
+            font-size: 16px;
+        }
+
+        .alert-icon {
+            font-size: 28px;
+        }
+    }
+
+    /* Dark Mode Support */
+    @media (prefers-color-scheme: dark) {
+        .alert-card {
+            filter: brightness(1.1);
+        }
+
+        .alert-title {
+            color: #222;
+        }
+
+        .alert-message {
+            color: #444;
+        }
+    }
+
+    /* No Alerts State */
+    .no-alerts {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+    }
+
+    .no-alerts-emoji {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+
+    .no-alerts-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin: 15px 0 10px 0;
+    }
+
+    .no-alerts-text {
+        font-size: 14px;
+        color: #666;
+    }
+</style>
+
+<script>
+    // Weather Alerts Manager
+    const WeatherAlertsManager = {
+        lastFetch: null,
+        autoRefreshInterval: 5 * 60 * 1000, // 5 minutes
+        autoRefreshTimer: null,
+
+        async init() {
+            // Get current location and fetch alerts
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        console.log(`📍 Got geolocation: ${latitude}, ${longitude}`);
+                        this.fetchAlerts(latitude, longitude);
+
+                        // Set up auto-refresh
+                        this.setupAutoRefresh(latitude, longitude);
+                    },
+                    (error) => {
+                        console.warn('Geolocation error, using default location:', error);
+                        this.fetchAlerts(22.7196, 75.8577); // Indore default
+                    }
+                );
+            } else {
+                console.log('Geolocation not available');
+                this.fetchAlerts(22.7196, 75.8577);
+            }
+        },
+
+        async fetchAlerts(latitude, longitude) {
+            try {
+                console.log(`🔄 Fetching weather alerts for ${latitude}, ${longitude}`);
+
+                const response = await fetch(
+                    `/api/weather-alerts?latitude=${latitude}&longitude=${longitude}`
+                );
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('✅ Alerts received:', data);
+
+                this.renderAlerts(data);
+                this.lastFetch = new Date();
+            } catch (error) {
+                console.error('❌ Error fetching alerts:', error);
+                this.showError(error.message);
+            }
+        },
+
+        setupAutoRefresh(latitude, longitude) {
+            // Refresh every 5 minutes
+            this.autoRefreshTimer = setInterval(() => {
+                console.log('🔄 Auto-refreshing weather alerts...');
+                this.fetchAlerts(latitude, longitude);
+            }, this.autoRefreshInterval);
+        },
+
+        renderAlerts(data) {
+            const container = document.getElementById('weatherAlertsContainer');
+            const alertsContent = document.getElementById('alertsContent');
+            const alertsGrid = document.getElementById('alertsGrid');
+            const priorityBanner = document.getElementById('priorityBanner');
+            const cropRec = document.getElementById('cropRecommendation');
+            const alertsLoading = document.getElementById('alertsLoading');
+
+            // Hide loading
+            alertsLoading.style.display = 'none';
+            alertsContent.style.display = 'block';
+
+            // Clear previous alerts
+            alertsGrid.innerHTML = '';
+
+            const { alerts, actionPriority, cropRecommendation } = data;
+
+            // Render priority banner
+            if (actionPriority && actionPriority.action) {
+                const action = actionPriority.action;
+                priorityBanner.style.display = 'flex';
+                priorityBanner.className = `priority-banner ${actionPriority.priority === 'URGENT' ? 'urgent' :
+                        actionPriority.priority === 'HIGH' ? 'warning' : 'normal'
+                    }`;
+
+                document.getElementById('priorityIcon').textContent = action.emoji;
+                document.getElementById('priorityTitle').textContent = action.title;
+                document.getElementById('priorityMessage').textContent = actionPriority.message;
+            }
+
+            // Render alert cards
+            if (alerts && alerts.length > 0) {
+                alerts.forEach(alert => {
+                    const alertCard = document.createElement('div');
+                    alertCard.className = `alert-card ${alert.severity}`;
+                    alertCard.innerHTML = `
+          <div class="alert-header">
+            <span class="alert-icon">${alert.emoji}</span>
+            <div>
+              <h4 class="alert-title">${alert.title}</h4>
+            </div>
+          </div>
+          <p class="alert-message">${alert.message}</p>
+          <div class="alert-recommendation">
+            <strong>💡 क्या करें / What to do:</strong>
+            ${alert.recommendation}
+          </div>
+          <div class="alert-footer">
+            <span>${alert.type.toUpperCase()}</span>
+            <span>${new Date().toLocaleTimeString('hi-IN')}</span>
+          </div>
+        `;
+                    alertsGrid.appendChild(alertCard);
+                });
+            } else {
+                alertsGrid.innerHTML = `
+        <div style="grid-column: 1/-1;">
+          <div class="no-alerts">
+            <div class="no-alerts-emoji">✅</div>
+            <div class="no-alerts-title">सभी ठीक है! / All Good!</div>
+            <div class="no-alerts-text">वर्तमान में कोई गंभीर चेतावनी नहीं है।</div>
+          </div>
+        </div>
+      `;
+            }
+
+            // Render crop recommendation
+            if (cropRecommendation) {
+                cropRec.style.display = 'block';
+                document.getElementById('recommendationText').textContent = cropRecommendation;
+            }
+        },
+
+        showError(message) {
+            const alertsGrid = document.getElementById('alertsGrid');
+            const alertsLoading = document.getElementById('alertsLoading');
+            const alertsContent = document.getElementById('alertsContent');
+
+            alertsLoading.style.display = 'none';
+            alertsContent.style.display = 'block';
+
+            alertsGrid.innerHTML = `
+      <div style="grid-column: 1/-1;">
+        <div class="no-alerts">
+          <div class="no-alerts-emoji">⚠️</div>
+          <div class="no-alerts-title">त्रुटि / Error</div>
+          <div class="no-alerts-text">${message}</div>
+        </div>
+      </div>
+    `;
+        }
+    };
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => WeatherAlertsManager.init());
+    } else {
+        WeatherAlertsManager.init();
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        if (WeatherAlertsManager.autoRefreshTimer) {
+            clearInterval(WeatherAlertsManager.autoRefreshTimer);
+        }
+    });
+</script>
