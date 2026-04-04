@@ -4,6 +4,9 @@ const session = require("express-session");
 
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
+const Notification = require("./models/Notification");
+const SmartAlertEngine = require("./services/SmartAlertEngine");
+const WeatherAlertService = require("./services/WeatherAlertService");
 
 const app = express();
 
@@ -329,104 +332,546 @@ function generateEMIPlan(emiAmount, incomeMonths, durationMonths) {
   return plan;
 }
 
-// ==================== Weather & Location Route ====================
+// ===== REAL WEATHER API INTEGRATION WITH PROVIDED API KEY =====
+const WEATHER_API_KEY = "837f8e27ea0a6f0a5912dfca0e08e00b";
 
-// Weather, Rainfall, and Soil Type Page
-app.get("/agriflow/weather", (req, res) => {
-  // Dummy location data - in production, this would come from geolocation API
-  const weatherData = {
-    location: {
-      city: "Indore",
-      state: "Madhya Pradesh",
-      latitude: 22.7196,
-      longitude: 75.8577,
-      district: "Indore"
+// Helper: Convert WMO weather code to description
+function getWeatherConditionFromCode(code) {
+  const weatherCodes = {
+    0: "Clear Sky",
+    1: "Mainly Clear",
+    2: "Partly Cloudy",
+    3: "Overcast",
+    45: "Foggy",
+    48: "Foggy",
+    51: "Light Drizzle",
+    53: "Moderate Drizzle",
+    55: "Heavy Drizzle",
+    61: "Slight Rain",
+    63: "Moderate Rain",
+    65: "Heavy Rain",
+    71: "Slight Snow",
+    73: "Moderate Snow",
+    75: "Heavy Snow",
+    80: "Slight Showers",
+    81: "Moderate Showers",
+    82: "Heavy Showers",
+    95: "Thunderstorm",
+    96: "Slight Thunderstorm",
+    99: "Heavy Thunderstorm"
+  };
+  return weatherCodes[code] || "Cloudy";
+}
+
+// Helper: Reverse geocode coordinates to get location name
+async function reverseGeocodeCoordinates(latitude, longitude) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.address) {
+        const result = {
+          city: data.address.city || data.address.town || data.address.village || "Unknown",
+          state: data.address.state || "Unknown",
+          country: data.address.country || "India"
+        };
+        console.log(`✅ Reverse geocoded: ${result.city}, ${result.state}`)
+        return result;
+      }
+    }
+  } catch (error) {
+    console.log("Reverse geocoding failed:", error.message);
+  }
+  // Fallback: use nearest city from database
+  console.log("⚠️ Using nearest city from database as fallback");
+  const nearestCity = getNearestCity(latitude, longitude);
+  if (nearestCity) {
+    return {
+      city: nearestCity.city,
+      state: nearestCity.state,
+      country: "India"
+    };
+  }
+  return null;
+}
+
+// Helper: Fetch real weather data from API
+async function fetchRealWeatherFromAPI(latitude, longitude) {
+  try {
+    console.log(`📍 Fetching real weather for: ${latitude}, ${longitude}`);
+
+    // Try Open-Meteo API first (free, no authentication needed)
+    try {
+      const openMeteoUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,cloud_cover,pressure_msl,wind_speed_10m,uv_index,visibility,weather_code&timezone=Asia/Kolkata`;
+
+      const response = await fetch(openMeteoUrl);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.current) {
+          const current = data.current;
+          console.log("✅ Using Open-Meteo weather data (Free API)");
+
+          // Try to get location name via reverse geocoding
+          const locationData = await reverseGeocodeCoordinates(latitude, longitude);
+
+          return {
+            temperature: Math.round(current.temperature_2m),
+            feelsLike: Math.round(current.apparent_temperature),
+            humidity: current.relative_humidity_2m,
+            windSpeed: Math.round(current.wind_speed_10m * 10) / 10,
+            windSpeedKmh: Math.round(current.wind_speed_10m * 3.6 * 10) / 10,
+            condition: getWeatherConditionFromCode(current.weather_code),
+            description: getWeatherConditionFromCode(current.weather_code),
+            uvIndex: Math.round(current.uv_index || 5),
+            visibility: Math.round((current.visibility || 10000) / 1000),
+            pressure: Math.round(current.pressure_msl || 1013),
+            clouds: current.cloud_cover || 20,
+            rainfall: current.precipitation || 0,
+            isDay: true,
+            // Location data from reverse geocoding
+            apiLocation: locationData ? {
+              city: locationData.city,
+              state: locationData.state,
+              country: locationData.country,
+              lat: latitude,
+              lon: longitude
+            } : null
+          };
+        }
+      }
+    } catch (openMeteoError) {
+      console.log("Open-Meteo failed, trying WeatherAPI...");
+    }
+
+    // Try WeatherAPI with the provided key
+    const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${latitude},${longitude}&aqi=yes`;
+
+    const response = await fetch(weatherUrl);
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.current && data.location) {
+        const current = data.current;
+        const location = data.location;
+        console.log("✅ Using WeatherAPI weather data");
+        return {
+          temperature: Math.round(current.temp_c),
+          feelsLike: Math.round(current.feelslike_c),
+          humidity: current.humidity,
+          windSpeed: Math.round(current.wind_mps * 10) / 10,
+          windSpeedKmh: Math.round(current.wind_kph),
+          condition: current.condition.text,
+          description: current.condition.text,
+          uvIndex: Math.round(current.uv),
+          visibility: Math.round(current.vis_km),
+          pressure: current.pressure_mb,
+          clouds: current.cloud,
+          rainfall: current.precip_mm,
+          isDay: current.is_day,
+          // Real location data from API
+          apiLocation: {
+            city: location.name,
+            state: location.region,
+            country: location.country,
+            lat: location.lat,
+            lon: location.lon
+          }
+        };
+      }
+    } else {
+      console.log(`WeatherAPI returned status ${response.status}`);
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Weather API error:", error.message);
+    return null;
+  }
+}
+
+// Enhanced: Fetch real weather for location
+async function fetchRealWeatherData(latitude, longitude) {
+  const realWeather = await fetchRealWeatherFromAPI(latitude, longitude);
+
+  if (realWeather) {
+    console.log("✅ Using REAL weather data from API");
+    return realWeather;
+  }
+
+  console.log("⚠️ API unavailable, using local generation");
+  // Fallback to local generation if API fails
+  return generateWeatherData(latitude, longitude);
+}
+
+// ===== CUSTOM DATABASE - Indian Cities & Regions =====
+const indianLocationsDB = [
+  { city: "Delhi", state: "Delhi", lat: 28.7041, lon: 77.1025, region: "North" },
+  { city: "Mumbai", state: "Maharashtra", lat: 19.0760, lon: 72.8777, region: "West" },
+  { city: "Bangalore", state: "Karnataka", lat: 12.9716, lon: 77.5946, region: "South" },
+  { city: "Hyderabad", state: "Telangana", lat: 17.3850, lon: 78.4867, region: "South" },
+  { city: "Chennai", state: "Tamil Nadu", lat: 13.0827, lon: 80.2707, region: "South" },
+  { city: "Kolkata", state: "West Bengal", lat: 22.5726, lon: 88.3639, region: "East" },
+  { city: "Pune", state: "Maharashtra", lat: 18.5204, lon: 73.8567, region: "West" },
+  { city: "Indore", state: "Madhya Pradesh", lat: 22.7196, lon: 75.8577, region: "Central" },
+  { city: "Gwalior", state: "Madhya Pradesh", lat: 26.2389, lon: 78.1639, region: "Central" },
+  { city: "Bhopal", state: "Madhya Pradesh", lat: 23.1815, lon: 79.9864, region: "Central" },
+  { city: "Jaipur", state: "Rajasthan", lat: 26.9124, lon: 75.7873, region: "North" },
+  { city: "Chandigarh", state: "Punjab", lat: 30.7333, lon: 76.8333, region: "North" },
+  { city: "Lucknow", state: "Uttar Pradesh", lat: 26.8467, lon: 80.9462, region: "North" },
+  { city: "Ahmedabad", state: "Gujarat", lat: 23.0225, lon: 72.5714, region: "West" },
+  { city: "Surat", state: "Gujarat", lat: 21.1458, lon: 72.8336, region: "West" },
+  { city: "Kochi", state: "Kerala", lat: 9.9312, lon: 76.2673, region: "South" },
+  { city: "Visakhapatnam", state: "Andhra Pradesh", lat: 17.6869, lon: 83.2185, region: "East" }
+];
+
+// ===== WEATHER PATTERNS BY REGION & SEASON =====
+function getWeatherByRegion(region, month) {
+  const weatherPatterns = {
+    North: {
+      winter: { temp: 15, humidity: 50, windSpeed: 20, condition: "Clear" },
+      summer: { temp: 38, humidity: 30, windSpeed: 15, condition: "Sunny" },
+      monsoon: { temp: 28, humidity: 75, windSpeed: 25, condition: "Cloudy" },
+      spring: { temp: 25, humidity: 45, windSpeed: 18, condition: "Partly Cloudy" }
     },
-    weather: {
-      temperature: 32,
-      humidity: 65,
-      windSpeed: 15,
-      condition: "Partly Cloudy",
-      feelsLike: 34,
-      uvIndex: 8,
-      visibility: 10,
-      pressure: 1013
+    South: {
+      winter: { temp: 28, humidity: 65, windSpeed: 12, condition: "Sunny" },
+      summer: { temp: 35, humidity: 55, windSpeed: 18, condition: "Sunny" },
+      monsoon: { temp: 26, humidity: 80, windSpeed: 28, condition: "Rainy" },
+      spring: { temp: 30, humidity: 60, windSpeed: 14, condition: "Partly Cloudy" }
     },
-    rainfall: {
-      today: 0,
-      thisWeek: 5.2,
-      thisMonth: 45.6,
-      lastMonth: 120.5,
-      forecast: [
-        { day: "Thursday", rainfall: "0mm", chance: "10%" },
-        { day: "Friday", rainfall: "2mm", chance: "20%" },
-        { day: "Saturday", rainfall: "15mm", chance: "60%" },
-        { day: "Sunday", rainfall: "8mm", chance: "45%" },
-        { day: "Monday", rainfall: "0mm", chance: "5%" }
-      ]
+    East: {
+      winter: { temp: 20, humidity: 55, windSpeed: 16, condition: "Clear" },
+      summer: { temp: 36, humidity: 45, windSpeed: 14, condition: "Sunny" },
+      monsoon: { temp: 27, humidity: 85, windSpeed: 26, condition: "Rainy" },
+      spring: { temp: 28, humidity: 60, windSpeed: 16, condition: "Cloudy" }
     },
-    soil: {
-      type: "Alluvial Soil",
-      pH: 6.8,
-      nitrogen: "High",
-      phosphorus: "Medium",
-      potassium: "Medium",
-      organic_matter: "3.2%",
-      color: "Brown",
-      texture: "Loam",
-      fertility: "Good",
-      recommendations: [
-        "उचित जल निकास सुनिश्चित करें / Ensure proper drainage",
-        "गर्मी के मौसम में सिंचाई बढ़ाएँ / Increase irrigation in summer",
-        "नाइट्रोजन की मात्रा संतुलित रखें / Maintain nitrogen balance",
-        "कार्बनिक खाद का उपयोग करें / Use organic fertilizers"
-      ]
+    West: {
+      winter: { temp: 26, humidity: 60, windSpeed: 14, condition: "Clear" },
+      summer: { temp: 37, humidity: 40, windSpeed: 16, condition: "Sunny" },
+      monsoon: { temp: 25, humidity: 82, windSpeed: 30, condition: "Rainy" },
+      spring: { temp: 32, humidity: 55, windSpeed: 15, condition: "Partly Cloudy" }
     },
-    airQuality: {
-      index: 145,
-      level: "Moderate",
-      pm25: 52,
-      pm10: 98,
-      no2: 35,
-      so2: 12
-    },
-    season: {
-      current: "Kharif",
-      bestCrops: ["धान (Rice)", "सोयाबीन (Soybean)", "मक्का (Maize)"],
-      waterNeeds: "High"
+    Central: {
+      winter: { temp: 22, humidity: 52, windSpeed: 18, condition: "Clear" },
+      summer: { temp: 40, humidity: 35, windSpeed: 14, condition: "Sunny" },
+      monsoon: { temp: 26, humidity: 78, windSpeed: 22, condition: "Cloudy" },
+      spring: { temp: 28, humidity: 50, windSpeed: 16, condition: "Partly Cloudy" }
     }
   };
 
-  res.render("agriflow-weather", { weatherData });
+  const getSeason = (m) => {
+    if (m >= 0 && m <= 2) return "winter";
+    if (m >= 3 && m <= 5) return "summer";
+    if (m >= 6 && m <= 9) return "monsoon";
+    return "spring";
+  };
+
+  const season = getSeason(month);
+  const pattern = (weatherPatterns[region] && weatherPatterns[region][season]) || weatherPatterns.Central.spring;
+
+  // Add randomness
+  return {
+    temperature: pattern.temp + Math.floor(Math.random() * 6) - 3,
+    humidity: pattern.humidity + Math.floor(Math.random() * 10) - 5,
+    windSpeed: pattern.windSpeed + Math.floor(Math.random() * 8) - 4,
+    condition: pattern.condition
+  };
+}
+
+// Helper: Find nearest city from coordinates (custom reverse geocoding)
+function getNearestCity(latitude, longitude) {
+  let nearest = indianLocationsDB[0];
+  let minDistance = Infinity;
+
+  indianLocationsDB.forEach(location => {
+    // Haversine formula simplified for short distances
+    const dLat = latitude - location.lat;
+    const dLon = longitude - location.lon;
+    const distance = Math.sqrt(dLat * dLat + dLon * dLon);
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearest = location;
+    }
+  });
+
+  return nearest;
+}
+
+// Helper: Get soil data based on location
+function getSoilDataByDistrict(state, region) {
+  const soilDatabase = {
+    "Delhi": { type: "Alluvial Soil", pH: 7.5, nitrogen: "Low", phosphorus: "Medium", potassium: "Medium", texture: "Loam", fertility: "Fair", color: "Brown", organic_matter: "1.8%" },
+    "Maharashtra": { type: "Black Soil", pH: 7.1, nitrogen: "Medium", phosphorus: "Low", potassium: "High", texture: "Clay", fertility: "Good", color: "Black", organic_matter: "2.7%" },
+    "Karnataka": { type: "Red Soil", pH: 6.2, nitrogen: "Low", phosphorus: "Low", potassium: "Medium", texture: "Loam", fertility: "Fair", color: "Red", organic_matter: "1.4%" },
+    "Tamil Nadu": { type: "Laterite Soil", pH: 5.8, nitrogen: "Low", phosphorus: "Low", potassium: "Medium", texture: "Clay", fertility: "Fair", color: "Red", organic_matter: "1.5%" },
+    "Telangana": { type: "Black Soil", pH: 7.3, nitrogen: "Medium", phosphorus: "Low", potassium: "High", texture: "Clay", fertility: "Good", color: "Black", organic_matter: "2.5%" },
+    "West Bengal": { type: "Alluvial Soil", pH: 7.2, nitrogen: "Medium", phosphorus: "Medium", potassium: "High", texture: "Loam", fertility: "Good", color: "Brown", organic_matter: "2.2%" },
+    "Gujarat": { type: "Sandy Loam", pH: 7.6, nitrogen: "Low", phosphorus: "Low", potassium: "Low", texture: "Sandy", fertility: "Fair", color: "Brown", organic_matter: "1.3%" },
+    "Madhya Pradesh": { type: "Black Soil", pH: 7.0, nitrogen: "Medium", phosphorus: "Low", potassium: "High", texture: "Clay", fertility: "Good", color: "Black", organic_matter: "2.5%" },
+    "Rajasthan": { type: "Sandy Loam", pH: 7.8, nitrogen: "Low", phosphorus: "Medium", potassium: "Low", texture: "Sandy", fertility: "Poor", color: "Red", organic_matter: "1.2%" },
+    "Punjab": { type: "Alluvial Soil", pH: 7.4, nitrogen: "High", phosphorus: "Medium", potassium: "High", texture: "Loam", fertility: "Excellent", color: "Brown", organic_matter: "2.9%" },
+    "Uttar Pradesh": { type: "Alluvial Soil", pH: 7.3, nitrogen: "Low", phosphorus: "Medium", potassium: "High", texture: "Loam", fertility: "Good", color: "Brown", organic_matter: "2.0%" },
+    "Kerala": { type: "Laterite Soil", pH: 5.5, nitrogen: "Low", phosphorus: "Low", potassium: "Medium", texture: "Clay", fertility: "Fair", color: "Red", organic_matter: "2.0%" },
+    "Andhra Pradesh": { type: "Red Soil", pH: 6.5, nitrogen: "Low", phosphorus: "Low", potassium: "Medium", texture: "Loam", fertility: "Fair", color: "Red", organic_matter: "1.6%" }
+  };
+
+  return soilDatabase[state] || {
+    type: "Alluvial Soil",
+    pH: 7.0 + Math.random() * 0.8,
+    nitrogen: ["Low", "Medium", "High"][Math.floor(Math.random() * 3)],
+    phosphorus: ["Low", "Medium", "High"][Math.floor(Math.random() * 3)],
+    potassium: ["Low", "Medium", "High"][Math.floor(Math.random() * 3)],
+    texture: "Loam",
+    fertility: "Good",
+    color: "Brown",
+    organic_matter: (1.5 + Math.random() * 2).toFixed(1) + "%"
+  };
+}
+
+// Helper: Generate realistic weather for location
+function generateWeatherData(latitude, longitude) {
+  const city = getNearestCity(latitude, longitude);
+  const month = new Date().getMonth();
+  const weather = getWeatherByRegion(city.region, month);
+
+  return {
+    temperature: weather.temperature,
+    humidity: weather.humidity,
+    windSpeed: weather.windSpeed,
+    condition: weather.condition,
+    feelsLike: weather.temperature + Math.floor(Math.random() * 4) - 2,
+    uvIndex: 4 + Math.floor(Math.random() * 5),
+    visibility: 8 + Math.floor(Math.random() * 4),
+    pressure: 1010 + Math.floor(Math.random() * 6),
+    clouds: weather.condition === "Sunny" ? Math.floor(Math.random() * 20) : Math.floor(Math.random() * 60) + 20
+  };
+}
+
+// Helper: Generate 5-day forecast based on patterns
+function generateForecast(latitude, longitude) {
+  const city = getNearestCity(latitude, longitude);
+  const month = new Date().getMonth();
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const currentDay = new Date().getDay();
+
+  const forecast = [];
+  for (let i = 1; i <= 5; i++) {
+    const dayIndex = (currentDay + i) % 7;
+    const dayName = dayNames[dayIndex];
+
+    // Add rainfall variability based on season and region
+    const isMonsonRegion = month >= 6 && month <= 9;
+    const rainfall = isMonsonRegion ? Math.floor(Math.random() * 25) + 5 : Math.floor(Math.random() * 15);
+    const chance = Math.floor(Math.random() * 70) + (isMonsonRegion ? 20 : 0);
+
+    forecast.push({
+      day: dayName,
+      rainfall: rainfall + "mm",
+      chance: Math.min(chance, 95) + "%"
+    });
+  }
+
+  return forecast;
+}
+
+// Weather GET route - loads page with geolocation or default
+app.get("/agriflow/weather", async (req, res) => {
+  try {
+    // Get coordinates from query params (from frontend geolocation) or use defaults
+    const latitude = parseFloat(req.query.lat) || 22.7196; // Indore default
+    const longitude = parseFloat(req.query.lon) || 75.8577;
+
+    // Fetch real weather data (with API fallback to local generation)
+    const weatherData_raw = await fetchRealWeatherData(latitude, longitude);
+
+    // Use API location if available, otherwise use nearest city from database
+    let locationData;
+    let region = "Central";
+
+    if (weatherData_raw.apiLocation) {
+      console.log(`✅ Using location from API: ${weatherData_raw.apiLocation.city}, ${weatherData_raw.apiLocation.state}`);
+      // Find region for this state
+      const stateMatch = indianLocationsDB.find(loc => loc.state === weatherData_raw.apiLocation.state);
+      region = stateMatch ? stateMatch.region : "Central";
+
+      locationData = {
+        city: weatherData_raw.apiLocation.city,
+        state: weatherData_raw.apiLocation.state,
+        region: region
+      };
+    } else {
+      console.log(`⚠️ API location unavailable, using nearest city from database`);
+      locationData = getNearestCity(latitude, longitude);
+      region = locationData.region;
+    }
+
+    // Get 5-day forecast using local patterns
+    const forecastData = generateForecast(latitude, longitude);
+
+    // Get soil data based on state
+    const soilData = getSoilDataByDistrict(locationData.state, region);
+
+    // Determine current season based on month
+    const month = new Date().getMonth();
+    let currentSeason = "Rabi";
+    if (month >= 5 && month <= 9) currentSeason = "Kharif";
+    else if (month >= 9 && month <= 11) currentSeason = "Hariyana";
+
+    // Compile complete weather data with detailed metrics
+    const weatherData = {
+      location: {
+        city: locationData.city,
+        state: locationData.state,
+        latitude: latitude,
+        longitude: longitude,
+        district: locationData.state
+      },
+      weather: {
+        temperature: weatherData_raw.temperature,
+        feelsLike: weatherData_raw.feelsLike,
+        humidity: weatherData_raw.humidity,
+        windSpeed: weatherData_raw.windSpeed || Math.round(weatherData_raw.windSpeedKmh / 3.6),
+        windSpeedKmh: weatherData_raw.windSpeedKmh || Math.round((weatherData_raw.windSpeed || 0) * 3.6),
+        condition: weatherData_raw.condition,
+        description: weatherData_raw.description,
+        uvIndex: weatherData_raw.uvIndex,
+        visibility: weatherData_raw.visibility,
+        pressure: weatherData_raw.pressure,
+        clouds: weatherData_raw.clouds,
+        rainfall: weatherData_raw.rainfall || 0
+      },
+      rainfall: {
+        today: weatherData_raw.rainfall || (weatherData_raw.humidity > 70 ? Math.floor(Math.random() * 10) : Math.floor(Math.random() * 3)),
+        thisWeek: 12.5,
+        thisMonth: 45.6,
+        lastMonth: 120.5,
+        forecast: forecastData
+      },
+      soil: {
+        type: soilData.type,
+        pH: soilData.pH,
+        nitrogen: soilData.nitrogen,
+        phosphorus: soilData.phosphorus,
+        potassium: soilData.potassium,
+        organic_matter: soilData.organic_matter,
+        color: soilData.color,
+        texture: soilData.texture,
+        fertility: soilData.fertility,
+        recommendations: [
+          `${soilData.type === "Black Soil" ? "काली मिट्टी के लिए जल निकास का विशेष ध्यान रखें / Ensure proper drainage for black soil" : "मिट्टी की नमी बनाए रखें / Maintain soil moisture"}`,
+          `pH स्तर (${soilData.pH}) अनुसार खाद का चयन करें / Adjust fertilizers per pH level (${soilData.pH})`,
+          `${soilData.nitrogen === "Low" ? "नाइट्रोजन युक्त खाद बढ़ाएँ / Increase nitrogen-rich fertilizers" : "नाइट्रोजन संतुलित रखें / Maintain nitrogen balance"}`,
+          `जैविक खाद का नियमित उपयोग करें / Use organic fertilizers regularly`
+        ]
+      },
+      airQuality: {
+        index: 80 + Math.floor(Math.random() * 60),
+        level: weatherData_raw.humidity > 75 ? "Poor" : "Moderate",
+        pm25: 30 + Math.floor(Math.random() * 40),
+        pm10: 60 + Math.floor(Math.random() * 60),
+        no2: 20 + Math.floor(Math.random() * 40),
+        so2: 5 + Math.floor(Math.random() * 15)
+      },
+      season: {
+        current: currentSeason,
+        bestCrops: currentSeason === "Kharif" ? ["धान (Rice)", "सोयाबीन (Soybean)", "मक्का (Maize)"] : ["गेहूं (Wheat)", "जौ (Barley)", "सरसों (Mustard)"],
+        waterNeeds: currentSeason === "Kharif" ? "High" : "Medium"
+      },
+      lastUpdate: new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })
+    };
+
+    res.render("agriflow-weather", { weatherData });
+  } catch (error) {
+    console.error("Weather page error:", error);
+    res.status(500).send("Error loading weather data");
+  }
 });
 
-// Weather API endpoint (for AJAX calls)
-app.get("/api/weather", (req, res) => {
-  // This would be called from the frontend with geolocation data
-  const { latitude, longitude } = req.query;
+// Weather API endpoint (for AJAX calls with geolocation)
+app.get("/api/weather", async (req, res) => {
+  try {
+    const { latitude, longitude } = req.query;
 
-  // Dummy API response
-  const weatherResponse = {
-    status: "success",
-    location: {
-      city: "Indore",
-      latitude: parseFloat(latitude) || 22.7196,
-      longitude: parseFloat(longitude) || 75.8577
-    },
-    weather: {
-      temperature: 32 + Math.floor(Math.random() * 5),
-      humidity: 60 + Math.floor(Math.random() * 20),
-      windSpeed: 10 + Math.floor(Math.random() * 15),
-      condition: "Partly Cloudy"
-    },
-    rainfall: {
-      today: Math.floor(Math.random() * 5),
-      thisWeek: 5.2,
-      thisMonth: 45.6
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: "Latitude and longitude required" });
     }
-  };
 
-  res.json(weatherResponse);
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    // Fetch real weather data (with fallback)
+    const weatherData_raw = await fetchRealWeatherData(lat, lon);
+
+    // Use API location if available, otherwise use nearest city from database
+    let locationData;
+    let region = "Central";
+
+    if (weatherData_raw.apiLocation) {
+      console.log(`✅ API Response - City: ${weatherData_raw.apiLocation.city}, State: ${weatherData_raw.apiLocation.state}`);
+      const stateMatch = indianLocationsDB.find(loc => loc.state === weatherData_raw.apiLocation.state);
+      region = stateMatch ? stateMatch.region : "Central";
+
+      locationData = {
+        city: weatherData_raw.apiLocation.city,
+        state: weatherData_raw.apiLocation.state,
+        region: region
+      };
+    } else {
+      locationData = getNearestCity(lat, lon);
+      region = locationData.region;
+    }
+
+    // Get soil data
+    const soilData = getSoilDataByDistrict(locationData.state, region);
+
+    // Detailed weather metrics for display
+    const weatherResponse = {
+      status: "success",
+      location: {
+        city: locationData.city,
+        state: locationData.state,
+        latitude: lat,
+        longitude: lon,
+        district: locationData.state
+      },
+      weather: {
+        temperature: weatherData_raw.temperature,
+        feelsLike: weatherData_raw.feelsLike,
+        humidity: weatherData_raw.humidity,
+        windSpeed: weatherData_raw.windSpeed,
+        windSpeedKmh: weatherData_raw.windSpeedKmh,
+        condition: weatherData_raw.condition,
+        description: weatherData_raw.description,
+        uvIndex: weatherData_raw.uvIndex,
+        visibility: weatherData_raw.visibility,
+        pressure: weatherData_raw.pressure,
+        clouds: weatherData_raw.clouds,
+        rainfall: weatherData_raw.rainfall
+      },
+      detailedMetrics: {
+        "🌧️ Rainfall": weatherData_raw.rainfall + " mm",
+        "💧 Humidity": weatherData_raw.humidity + " %",
+        "🌬️ Wind Speed": (weatherData_raw.windSpeed || Math.round(weatherData_raw.windSpeedKmh / 3.6)) + " m/s",
+        "🌡️ Feels Like Temp": weatherData_raw.feelsLike + "°C",
+        "🔵 Pressure": weatherData_raw.pressure + " hPa",
+        "☁️ Cloud Cover": weatherData_raw.clouds + " %"
+      },
+      soil: {
+        type: soilData.type,
+        pH: soilData.pH,
+        fertility: soilData.fertility
+      },
+      timestamp: new Date().toISOString(),
+      dataSource: weatherData_raw.apiLocation ? "Real API" : "Local Fallback"
+    };
+
+    res.json(weatherResponse);
+  } catch (error) {
+    console.error("Weather API error:", error);
+    res.status(500).json({ error: "Server error", message: error.message });
+  }
 });
 
 // ==================== AI CHAT ROUTE ====================
@@ -742,6 +1187,317 @@ async function predictIncomeWithML(features) {
     return null;
   }
 }
+
+// ==================== WEATHER ALERTS API ====================
+
+// Get smart weather alerts based on current conditions
+app.get("/api/weather-alerts", async (req, res) => {
+  try {
+    const { latitude, longitude } = req.query;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ error: "Latitude and longitude required" });
+    }
+
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    // Fetch real weather data
+    const weatherData_raw = await fetchRealWeatherData(lat, lon);
+
+    if (!weatherData_raw) {
+      return res.status(500).json({ error: "Failed to fetch weather data" });
+    }
+
+    // Get location data
+    let locationData;
+    if (weatherData_raw.apiLocation) {
+      locationData = {
+        city: weatherData_raw.apiLocation.city,
+        state: weatherData_raw.apiLocation.state
+      };
+    } else {
+      const nearest = getNearestCity(lat, lon);
+      locationData = {
+        city: nearest.city,
+        state: nearest.state
+      };
+    }
+
+    // Generate weather alerts using WeatherAlertService
+    const alerts = WeatherAlertService.generateWeatherAlerts(weatherData_raw, locationData);
+    const actionPriority = WeatherAlertService.getActionPriority(alerts);
+    const cropRecommendation = WeatherAlertService.getCropRecommendations(weatherData_raw);
+
+    return res.json({
+      status: "success",
+      location: locationData,
+      weather: {
+        temperature: weatherData_raw.temperature,
+        humidity: weatherData_raw.humidity,
+        windSpeed: weatherData_raw.windSpeed,
+        condition: weatherData_raw.condition,
+        rainfall: weatherData_raw.rainfall || 0
+      },
+      alerts: alerts,
+      totalAlerts: alerts.length,
+      actionPriority: actionPriority,
+      cropRecommendation: cropRecommendation,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error generating weather alerts:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== DYNAMIC WEATHER ALERTS API ====================
+
+// Store alerts in memory for the session
+let weatherAlertsCache = [];
+
+// Helper: Format time as "X min ago"
+function getTimeAgo(minutes = 0) {
+  if (minutes === 0) return "Just now";
+  if (minutes === 1) return "1 min ago";
+  if (minutes < 60) return `${minutes} min ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
+}
+
+// Dynamic weather alerts endpoint
+app.get("/api/alerts", async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lon = parseFloat(req.query.lon);
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ error: "Valid latitude and longitude required" });
+    }
+
+    // Fetch real weather data
+    const weatherData = await fetchRealWeatherData(lat, lon);
+    if (!weatherData) {
+      return res.status(500).json({ error: "Could not fetch weather data" });
+    }
+
+    // Generate alerts based on weather
+    const alerts = [];
+
+    // 🌧️ Rain Alert
+    if (weatherData.condition && weatherData.condition.toLowerCase().includes('rain')) {
+      alerts.push({
+        message: "🌧️ बारिश होने वाली है, सिंचाई रोकें / Rain expected, stop irrigation",
+        type: "weather",
+        severity: "medium",
+        time: getTimeAgo(0)
+      });
+    }
+
+    // 💧 High Humidity Alert (>80%)
+    if (weatherData.humidity > 80) {
+      alerts.push({
+        message: `⚠️ अधिक नमी (${weatherData.humidity}%), फसल में रोग का खतरा / High humidity risk of crop disease`,
+        type: "warning",
+        severity: "high",
+        time: getTimeAgo(0)
+      });
+    }
+
+    // 🔥 High Temperature Alert (>35°C)
+    if (weatherData.temperature > 35) {
+      alerts.push({
+        message: `🔥 अत्यधिक तापमान (${weatherData.temperature}°C), फसल को पानी दें / High temperature, water crops immediately`,
+        type: "warning",
+        severity: "high",
+        time: getTimeAgo(0)
+      });
+    }
+
+    // 🌬️ Strong Wind Alert (>10 m/s)
+    if (weatherData.windSpeed && weatherData.windSpeed > 10) {
+      alerts.push({
+        message: `🌬️ तेज हवा (${weatherData.windSpeed} m/s), फसल को नुकसान हो सकता है / Strong wind, crops may be damaged`,
+        type: "warning",
+        severity: "medium",
+        time: getTimeAgo(0)
+      });
+    }
+
+    // ❄️ Frost Alert (<5°C)
+    if (weatherData.temperature < 5) {
+      alerts.push({
+        message: `❄️ कड़ी ठंड (${weatherData.temperature}°C), पाले का खतरा / Frost risk, cover crops`,
+        type: "warning",
+        severity: "high",
+        time: getTimeAgo(0)
+      });
+    }
+
+    // 🏜️ Low Humidity Alert (<20%)
+    if (weatherData.humidity < 20) {
+      alerts.push({
+        message: `🏜️ बहुत कम नमी (${weatherData.humidity}%), सिंचाई बढ़ाएं / Very low humidity, increase irrigation`,
+        type: "warning",
+        severity: "medium",
+        time: getTimeAgo(0)
+      });
+    }
+
+    // ✅ Normal Conditions Alert
+    if (alerts.length === 0 ||
+      (weatherData.temperature >= 15 && weatherData.temperature <= 35 &&
+        weatherData.humidity >= 40 && weatherData.humidity <= 80 &&
+        weatherData.windSpeed <= 10 &&
+        !weatherData.condition?.toLowerCase().includes('rain'))) {
+      alerts.push({
+        message: "✅ सामान्य मौसम / Normal conditions - Good day for farming",
+        type: "normal",
+        severity: "low",
+        time: getTimeAgo(0)
+      });
+    }
+
+    // Cache alerts for this session
+    weatherAlertsCache = alerts;
+
+    res.json({
+      status: "success",
+      alerts: alerts,
+      total: alerts.length,
+      location: weatherData.apiLocation || { city: "Your Location", state: "" },
+      weather: {
+        temperature: weatherData.temperature,
+        humidity: weatherData.humidity,
+        windSpeed: weatherData.windSpeed,
+        condition: weatherData.condition,
+        rainfall: weatherData.rainfall
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("Alerts API error:", error);
+    res.status(500).json({ error: "Server error", message: error.message });
+  }
+});
+
+// ==================== NOTIFICATION API ENDPOINTS ====================
+
+// Notifications center page
+app.get("/agriflow/notifications", (req, res) => {
+  res.render("notifications");
+});
+
+// Get unread notifications
+app.get("/api/notifications/unread", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const alerts = await SmartAlertEngine.getUnreadAlerts(req.session.userId);
+    return res.json({
+      status: "success",
+      count: alerts.length,
+      alerts: alerts
+    });
+  } catch (error) {
+    console.error("Error getting unread notifications:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all notifications with pagination
+app.get("/api/notifications", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const result = await SmartAlertEngine.getAllAlerts(req.session.userId, page, limit);
+    return res.json({
+      status: "success",
+      ...result
+    });
+  } catch (error) {
+    console.error("Error getting notifications:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark notification as read
+app.post("/api/notifications/:id/read", async (req, res) => {
+  try {
+    const alert = await SmartAlertEngine.markAsRead(req.params.id);
+    if (!alert) {
+      return res.status(404).json({ error: "Alert not found" });
+    }
+    return res.json({ status: "success", alert });
+  } catch (error) {
+    console.error("Error marking alert as read:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Dismiss notification
+app.post("/api/notifications/:id/dismiss", async (req, res) => {
+  try {
+    const alert = await SmartAlertEngine.dismissAlert(req.params.id);
+    if (!alert) {
+      return res.status(404).json({ error: "Alert not found" });
+    }
+    return res.json({ status: "success", alert });
+  } catch (error) {
+    console.error("Error dismissing alert:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Test: Generate and save sample alerts
+app.post("/api/notifications/generate-sample", async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    // Sample weather data
+    const weatherData = {
+      temperature: 42,
+      rainfall: 55,
+      humidity: 15
+    };
+
+    const location = {
+      city: "Gwalior",
+      state: "Madhya Pradesh",
+      latitude: 26.2389,
+      longitude: 78.1639
+    };
+
+    // Generate alerts
+    const weatherAlerts = await SmartAlertEngine.generateWeatherAlert(req.session.userId, weatherData, location);
+    const incomeAlerts = await SmartAlertEngine.generateIncomeAlert(req.session.userId, 45000, 50000);
+    const seasonalAlerts = SmartAlertEngine.generateSeasonalAlert(req.session.userId, location, 'summer');
+
+    // Combine all alerts
+    const allAlerts = [...weatherAlerts, ...incomeAlerts, ...seasonalAlerts];
+
+    // Save to database
+    const savedAlerts = await SmartAlertEngine.saveAlerts(req.session.userId, allAlerts);
+
+    return res.json({
+      status: "success",
+      message: `Generated and saved ${savedAlerts.length} sample alerts`,
+      alerts: savedAlerts
+    });
+  } catch (error) {
+    console.error("Error generating sample alerts:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 app.use("/", authRoutes);
 

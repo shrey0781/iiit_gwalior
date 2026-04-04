@@ -15,6 +15,82 @@
     <a href="/agriflow/chat"
       style="color: white; text-decoration: none; font-weight: 600; font-size: 1.1rem; transition: all 0.3s ease;">🤖
       AI Chat</a>
+    <a href="/agriflow/notifications" class="navbar-notifications-link" title="नोटिफिकेशन">🔔 Alerts</a>
     <a href="/agriflow/apply" class="btn-apply-nav">📋 Apply Now</a>
   </div>
 </nav>
+
+<style>
+  .navbar-notifications-link {
+    color: white !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+    transition: all 0.3s ease !important;
+    position: relative;
+  }
+
+  .navbar-notifications-link:hover {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+
+  .navbar-notifications-link::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    width: 12px;
+    height: 12px;
+    background: #ff4444;
+    border-radius: 50%;
+    font-size: 10px;
+    display: none;
+  }
+
+  .navbar-notifications-link.has-unread::after {
+    display: block;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+
+    0%,
+    100% {
+      transform: scale(1);
+    }
+
+    50% {
+      transform: scale(1.2);
+    }
+  }
+</style>
+
+<script>
+  // Update notification badge
+  async function updateNotificationBadge() {
+    try {
+      const response = await fetch('/api/notifications/unread');
+      const data = await response.json();
+      const link = document.querySelector('.navbar-notifications-link');
+
+      if (data.count > 0) {
+        link.classList.add('has-unread');
+      } else {
+        link.classList.remove('has-unread');
+      }
+    } catch (error) {
+      console.error('Error updating notification badge:', error);
+    }
+  }
+
+  // Check on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', updateNotificationBadge);
+  } else {
+    updateNotificationBadge();
+  }
+
+  // Refresh every 30 seconds
+  setInterval(updateNotificationBadge, 30000);
+</script>

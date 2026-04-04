@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="hi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>नोटिफिकेशन सेंटर - AgriFlow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .filter-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .Filter-btn.active:hover {
+            background: #5568d3;
+        }
+
+        .alerts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .alert-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .alert-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .alert-card.critical {
+            border-left: 4px solid #ff4444;
+            background: #fff5f5;
+        }
+
+        .alert-card.high {
+            border-left: 4px solid #ff9800;
+            background: #fff8f0;
+        }
+
+        .alert-card.medium {
+            border-left: 4px solid #2196f3;
+            background: #f0f7ff;
+        }
+
+        .alert-card.low {
+            border-left: 4px solid #4caf50;
+            background: #f0fff4;
+        }
+
+        .alert-card.unread {
+            font-weight: 500;
+            border-width: 2px;
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+        }
+
+        .alert-icon {
+            font-size: 24px;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            color: #333;
+            font-size: 15px;
+        }
+
+        .alert-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .alert-message {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .alert-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .empty-text {
+            color: #999;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .page-btn.active:hover {
+            background: #5568d3;
+        }
+
+        @media (max-width: 600px) {
+            .alerts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 सभी नोटिफिकेशन</h1>
+            <p>अपनी सभी महत्वपूर्ण सूचनाएं और अपडेट यहाँ देखें</p>
+        </div>
+
+        <div class="content">
+            <!-- Statistics -->
+            <div class="stats" id="stats"></div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">सभी</button>
+                <button class="filter-btn" data-filter="unread">अनपढ़े</button>
+                <button class="filter-btn" data-filter="critical">गंभीर</button>
+                <button class="filter-btn" data-filter="weather">मौसम</button>
+                <button class="filter-btn" data-filter="loan">ऋण</button>
+                <button class="filter-btn" data-filter="income">आय</button>
+            </div>
+
+            <!-- Alerts Grid -->
+            <div class="alerts-grid" id="alertsGrid">
+                <div class="loading">लोड हो रहा है...</div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <script>
+        const NotificationCenter = {
+            currentPage: 1,
+            currentFilter: 'all',
+            alerts: [],
+            latitude: null,
+            longitude: null,
+            refreshInterval: null,
+
+            async init() {
+                this.setupEventListeners();
+
+                // Get geolocation
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            this.latitude = position.coords.latitude;
+                            this.longitude = position.coords.longitude;
+                            console.log('✅ Got geolocation:', this.latitude, this.longitude);
+                            this.loadAlerts();
+                        },
+                        (error) => {
+                            console.log('⚠️ Geolocation denied, using default:', error);
+                            // Default to Gwalior
+                            this.latitude = 26.2389;
+                            this.longitude = 78.1639;
+                            this.loadAlerts();
+                        }
+                    );
+                } else {
+                    // Fallback to default location
+                    this.latitude = 26.2389;
+                    this.longitude = 78.1639;
+                    this.loadAlerts();
+                }
+
+                // Auto-refresh every 30 seconds
+                this.refreshInterval = setInterval(() => {
+                    if (this.latitude && this.longitude) {
+                        this.loadAlerts();
+                    }
+                }, 30000);
+            },
+
+            setupEventListeners() {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.currentFilter = e.target.dataset.filter;
+                        this.currentPage = 1;
+                        this.loadAlerts();
+                    });
+                });
+            },
+
+            async loadAlerts() {
+                try {
+                    if (!this.latitude || !this.longitude) {
+                        throw new Error('Coordinates not available');
+                    }
+
+                    const response = await fetch(`/api/alerts?lat=${this.latitude}&lon=${this.longitude}`);
+                    const data = await response.json();
+
+                    this.alerts = data.alerts || [];
+                    this.renderAlerts();
+                    this.renderStats();
+                } catch (error) {
+                    console.error('Error loading alerts:', error);
+                    document.getElementById('alertsGrid').innerHTML =
+                        '<div class="empty-state"><div class="empty-icon">❌</div><div class="empty-title">त्रुटि</div><p>अलर्ट लोड नहीं हो सके</p></div>';
+                }
+            },
+
+            renderStats() {
+                // For weather alerts: high severity = critical
+                const critical = this.alerts.filter(a => a.severity === 'high').length;
+                const unread = this.alerts.length; // All alerts are "unread" (fresh)
+                const today = this.alerts.length; // All weather alerts are for today
+
+                document.getElementById('stats').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${this.alerts.length}</div>
+                        <div class="stat-label">कुल अलर्ट</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${unread}</div>
+                        <div class="stat-label">अनपढ़े</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${critical}</div>
+                        <div class="stat-label">गंभीर</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${today}</div>
+                        <div class="stat-label">आज</div>
+                    </div>
+                `;
+            },
+
+            renderAlerts() {
+                let filtered = this.alerts;
+
+                if (this.currentFilter !== 'all') {
+                    if (this.currentFilter === 'unread') {
+                        filtered = filtered.filter(a => true); // All are unread
+                    } else if (this.currentFilter === 'critical') {
+                        filtered = filtered.filter(a => a.severity === 'high');
+                    } else {
+                        filtered = filtered.filter(a => a.type === this.currentFilter);
+                    }
+                }
+
+                if (filtered.length === 0) {
+                    document.getElementById('alertsGrid').innerHTML = `
+                        <div style="grid-column: 1/-1;">
+                            <div class="empty-state">
+                                <div class="empty-icon">📭</div>
+                                <div class="empty-title">कोई नोटिफिकेशन नहीं</div>
+                                <p class="empty-text">अभी के लिए आपके पास कोई नई सूचना नहीं है</p>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const severityColors = {
+                    'high': '#ff4444',
+                    'medium': '#ff9800',
+                    'low': '#4caf50'
+                };
+
+                document.getElementById('alertsGrid').innerHTML = filtered.map((alert, idx) => {
+                    const borderColor = severityColors[alert.severity] || '#2196f3';
+                    const bgColor = alert.severity === 'high' ? '#fff5f5' :
+                        alert.severity === 'medium' ? '#fff8f0' : '#f0fff4';
+
+                    return `
+                        <div class="alert-card" style="border-left: 4px solid ${borderColor}; background: ${bgColor};">
+                            <div class="alert-header">
+                                <div class="alert-icon" style="font-size: 24px;">${alert.message.split(' ')[0]}</div>
+                                <span class="alert-badge" style="background: ${borderColor};">${alert.severity.toUpperCase()}</span>
+                            </div>
+                            <div class="alert-message" style="line-height: 1.6;">${alert.message}</div>
+                            <div class="alert-meta">
+                                <span>${alert.time}</span>
+                                <span>${alert.type}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            getTimeAgo(date) {
+                const seconds = Math.floor((new Date() - date) / 1000);
+
+                let interval = seconds / 31536000;
+                if (interval > 1) return Math.floor(interval) + ' साल पहले';
+
+                interval = seconds / 2592000;
+                if (interval > 1) return Math.floor(interval) + ' महीने पहले';
+
+                interval = seconds / 86400;
+                if (interval > 1) return Math.floor(interval) + ' दिन पहले';
+
+                interval = seconds / 3600;
+                if (interval > 1) return Math.floor(interval) + ' घंटे पहले';
+
+                interval = seconds / 60;
+                if (interval > 1) return Math.floor(interval) + ' मिनट पहले';
+
+                return 'अभी'
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => NotificationCenter.init());
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (NotificationCenter.refreshInterval) {
+                clearInterval(NotificationCenter.refreshInterval);
+            }
+        });
+    </script>
+</body>
+
+</html>

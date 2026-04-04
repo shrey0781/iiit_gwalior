@@ -1,0 +1,451 @@
+<!-- Notification Bell Component -->
+<div class="notification-container">
+    <div class="notification-bell" id="notificationBell">
+        <svg class="bell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        <span class="notification-count" id="notificationCount" style="display: none;"></span>
+    </div>
+
+    <!-- Notification Panel -->
+    <div class="notification-panel" id="notificationPanel">
+        <div class="notification-header">
+            <h3>🔔 नोटिफिकेशन</h3>
+            <button class="close-btn" id="closeNotificationPanel">✕</button>
+        </div>
+
+        <div class="notification-tabs">
+            <button class="tab-btn active" data-tab="unread">अनपढ़े</button>
+            <button class="tab-btn" data-tab="all">सभी</button>
+        </div>
+
+        <div class="notification-content">
+            <div class="notification-list" id="notificationList">
+                <div class="loading">लोड हो रहा है...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .notification-container {
+        position: relative;
+    }
+
+    .notification-bell {
+        cursor: pointer;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f0f0f0;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .notification-bell:hover {
+        background: #e0e0e0;
+        transform: scale(1.05);
+    }
+
+    .bell-icon {
+        width: 24px;
+        height: 24px;
+        color: #333;
+    }
+
+    .notification-count {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        background: #ff4444;
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: bold;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.1);
+        }
+    }
+
+    .notification-panel {
+        position: absolute;
+        top: 50px;
+        right: 0;
+        width: 380px;
+        max-height: 500px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .notification-panel.active {
+        display: flex;
+    }
+
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .notification-header h3 {
+        margin: 0;
+        font-size: 16px;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .notification-tabs {
+        display: flex;
+        border-bottom: 1px solid #eee;
+    }
+
+    .tab-btn {
+        flex: 1;
+        padding: 12px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #666;
+        font-weight: 500;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s;
+    }
+
+    .tab-btn.active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+    }
+
+    .notification-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 400px;
+    }
+
+    .notification-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .notification-item {
+        padding: 12px 15px;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .notification-item:hover {
+        background: #f9f9f9;
+    }
+
+    .notification-item.unread {
+        background: #f0f5ff;
+    }
+
+    .notification-item.critical {
+        border-left: 4px solid #ff4444;
+    }
+
+    .notification-item.high {
+        border-left: 4px solid #ff9800;
+    }
+
+    .notification-item.medium {
+        border-left: 4px solid #2196f3;
+    }
+
+    .notification-item.low {
+        border-left: 4px solid #4caf50;
+    }
+
+    .notification-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .notification-body {
+        flex: 1;
+    }
+
+    .notification-title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+        font-size: 14px;
+    }
+
+    .notification-message {
+        font-size: 13px;
+        color: #666;
+        line-height: 1.4;
+        margin-bottom: 8px;
+    }
+
+    .notification-time {
+        font-size: 12px;
+        color: #999;
+    }
+
+    .notification-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .notification-actions button {
+        font-size: 12px;
+        padding: 4px 8px;
+        border: none;
+        background: #f0f0f0;
+        color: #333;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .notification-actions button:hover {
+        background: #e0e0e0;
+    }
+
+    .notification-actions .action-btn {
+        background: #667eea;
+        color: white;
+    }
+
+    .notification-actions .action-btn:hover {
+        background: #5568d3;
+    }
+
+    .loading {
+        padding: 40px 15px;
+        text-align: center;
+        color: #999;
+        font-size: 14px;
+    }
+
+    .empty {
+        padding: 40px 15px;
+        text-align: center;
+        color: #999;
+        font-size: 14px;
+    }
+
+    .empty-icon {
+        font-size: 40px;
+        margin-bottom: 10px;
+        opacity: 0.5;
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 600px) {
+        .notification-panel {
+            width: calc(100vw - 20px);
+            right: 10px;
+        }
+    }
+</style>
+
+<script>
+    // Notification System
+    const NotificationUI = {
+        init() {
+            this.bell = document.getElementById('notificationBell');
+            this.panel = document.getElementById('notificationPanel');
+            this.list = document.getElementById('notificationList');
+            this.count = document.getElementById('notificationCount');
+            this.closeBtn = document.getElementById('closeNotificationPanel');
+
+            this.currentTab = 'unread';
+
+            this.setupEventListeners();
+            this.loadNotifications();
+
+            // Refresh notifications every 30 seconds
+            setInterval(() => this.loadNotifications(), 30000);
+        },
+
+        setupEventListeners() {
+            this.bell.addEventListener('click', () => this.togglePanel());
+            this.closeBtn.addEventListener('click', () => this.closePanel());
+
+            // Tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    this.currentTab = e.target.dataset.tab;
+                    this.loadNotifications();
+                });
+            });
+
+            // Close panel when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!this.bell.contains(e.target) && !this.panel.contains(e.target)) {
+                    this.closePanel();
+                }
+            });
+        },
+
+        togglePanel() {
+            this.panel.classList.toggle('active');
+            if (this.panel.classList.contains('active')) {
+                this.loadNotifications();
+            }
+        },
+
+        closePanel() {
+            this.panel.classList.remove('active');
+        },
+
+        async loadNotifications() {
+            try {
+                const endpoint = this.currentTab === 'unread'
+                    ? '/api/notifications/unread'
+                    : '/api/notifications?limit=50';
+
+                const response = await fetch(endpoint);
+                const data = await response.json();
+
+                if (data.alerts && data.alerts.length > 0) {
+                    this.renderNotifications(data.alerts);
+                    this.updateCount(data.count || data.alerts.length);
+                } else {
+                    this.list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>कोई नोटिफिकेशन नहीं</div>';
+                    if (this.currentTab === 'unread') {
+                        this.updateCount(0);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+                this.list.innerHTML = '<div class="empty">त्रुटि: नोटिफिकेशन लोड नहीं हो सके</div>';
+            }
+        },
+
+        renderNotifications(alerts) {
+            this.list.innerHTML = alerts.map(alert => {
+                const timeAgo = this.getTimeAgo(new Date(alert.createdAt));
+                const priorityClass = alert.priority.toLowerCase();
+                const iconMap = {
+                    'WEATHER': '🌤️',
+                    'LOAN': '💰',
+                    'INCOME': '📊',
+                    'SOIL': '🌱',
+                    'RISK': '⚠️',
+                    'SEASONAL': '📅',
+                    'PAYMENT_DUE': '💳',
+                    'CRITICAL': '🚨'
+                };
+
+                const icon = iconMap[alert.type] || '🔔';
+
+                return `
+        <div class="notification-item ${priorityClass} ${alert.isRead ? '' : 'unread'}">
+          <div class="notification-icon">${icon}</div>
+          <div class="notification-body">
+            <div class="notification-title">${alert.title}</div>
+            <div class="notification-message">${alert.message}</div>
+            <div class="notification-time">${timeAgo}</div>
+            <div class="notification-actions">
+              ${alert.data?.actionUrl ? `<a href="${alert.data.actionUrl}" class="action-btn">${alert.data.actionLabel || 'View'}</a>` : ''}
+              ${!alert.isRead ? `<button onclick="NotificationUI.markAsRead('${alert._id}')">पढ़ा हुआ</button>` : ''}
+              <button onclick="NotificationUI.dismiss('${alert._id}')">×</button>
+            </div>
+          </div>
+        </div>
+      `;
+            }).join('');
+        },
+
+        updateCount(count) {
+            if (count > 0) {
+                this.count.textContent = count > 99 ? '99+' : count;
+                this.count.style.display = 'flex';
+            } else {
+                this.count.style.display = 'none';
+            }
+        },
+
+        async markAsRead(alertId) {
+            try {
+                await fetch(`/api/notifications/${alertId}/read`, { method: 'POST' });
+                this.loadNotifications();
+            } catch (error) {
+                console.error('Error marking as read:', error);
+            }
+        },
+
+        async dismiss(alertId) {
+            try {
+                await fetch(`/api/notifications/${alertId}/dismiss`, { method: 'POST' });
+                this.loadNotifications();
+            } catch (error) {
+                console.error('Error dismissing:', error);
+            }
+        },
+
+        getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + ' साल पहले';
+
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + ' महीने पहले';
+
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + ' दिन पहले';
+
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + ' घंटे पहले';
+
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + ' मिनट पहले';
+
+            return 'अभी'
+        }
+    };
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => NotificationUI.init());
+    } else {
+        NotificationUI.init();
+    }
+</script>
