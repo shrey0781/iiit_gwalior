@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Monthly Income Prediction - AgriFlow</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
+    <style>
+        .income-result-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .income-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .income-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .income-label {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .monthly-chart {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .month-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        .month-item:last-child {
+            border-bottom: none;
+        }
+
+        .month-name {
+            font-weight: 600;
+            color: #333;
+            min-width: 100px;
+        }
+
+        .month-bar {
+            flex: 1;
+            height: 30px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 5px;
+            margin: 0 15px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .month-income {
+            min-width: 100px;
+            text-align: right;
+            color: #667eea;
+            font-weight: 700;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .summary-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+
+        .btn-next {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            color: #333;
+        }
+
+        .info-box strong {
+            color: #667eea;
+        }
+
+        @media (max-width: 600px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .income-display {
+                font-size: 36px;
+            }
+
+            .month-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .month-bar {
+                width: 100%;
+                margin: 8px 0;
+                min-width: 200px;
+            }
+
+            .month-income {
+                width: 100%;
+                text-align: left;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <%- include('partials/navbar-agriflow') %>
+
+        <section class="section">
+            <div class="income-result-container">
+                <h2>🎯 Your Income Prediction</h2>
+                <p>आपकी मासिक आय का पूर्वानुमान / Based on your farm details</p>
+            </div>
+
+            <!-- Farmer Info Card -->
+            <div class="income-card">
+                <h3>👨‍🌾 Farm Details</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div>
+                        <div class="income-label">नाम / Name</div>
+                        <p><strong><%= farmer.name %></strong></p>
+                    </div>
+                    <div>
+                        <div class="income-label">जिला / District</div>
+                        <p><strong><%= farmer.district %></strong></p>
+                    </div>
+                    <div>
+                        <div class="income-label">फसल / Crop</div>
+                        <p><strong><%= farmer.crop %></strong></p>
+                    </div>
+                    <div>
+                        <div class="income-label">जमीन / Land Size</div>
+                        <p><strong><%= farmer.land %> एकड़ / acres</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Income Prediction -->
+            <div class="income-card">
+                <div class="income-label">💰 Average Monthly Income</div>
+                <div class="income-display">₹<%= farmer.averageMonthlyIncome %></div>
+                <p style="color: #666; font-size: 14px; margin: 0;">
+                    📊 Based on your <%= farmer.land %> acre(s) of <%= farmer.crop %> cultivation
+                </p>
+            </div>
+
+            <!-- Real Data Factors Used in Prediction -->
+            <div class="income-card">
+                <h3>🔍 Real Data Factors Used</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <div class="income-label">🌧️ Rainfall</div>
+                        <p><strong><%= typeof farmer.rainfall !== 'undefined' ? farmer.rainfall.toFixed(1) : 'N/A' %> mm</strong></p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <div class="income-label">🌱 NDVI (Vegetation Index)</div>
+                        <p><strong><%= typeof farmer.ndvi !== 'undefined' ? farmer.ndvi.toFixed(3) : 'N/A' %></strong></p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <div class="income-label">📈 Mandi Price</div>
+                        <p><strong>₹<%= typeof farmer.mandiPrice !== 'undefined' ? farmer.mandiPrice : 'N/A' %>/quintal</strong></p>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                        <div class="income-label">📊 Price Shock</div>
+                        <p><strong><%= typeof farmer.priceShock !== 'undefined' ? (farmer.priceShock > 0 ? '+' : '') + farmer.priceShock.toFixed(2) : 'N/A' %>%</strong></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-label">🏆 Best Earning Month</div>
+                    <div class="summary-value"><%= farmer.bestMonth %></div>
+                    <div style="font-size: 16px; margin-top: 8px;">₹<%= farmer.bestMonthIncome %></div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">📉 Lowest Month</div>
+                    <div class="summary-value"><%= farmer.lowestMonth %></div>
+                    <div style="font-size: 16px; margin-top: 8px;">₹<%= farmer.lowestMonthIncome %></div>
+                </div>
+            </div>
+
+            <!-- Monthly Income Chart -->
+            <div class="income-card">
+                <h3>📅 Monthly Income Breakdown</h3>
+                <div class="monthly-chart">
+                    <% farmer.monthlyIncomeData.forEach((item, index) => { %>
+                        <div class="month-item">
+                            <div class="month-name"><%= item.month %></div>
+                            <div class="month-bar" style="width: <%= (item.income / farmer.bestMonthIncome * 100) %>%; min-width: 50px;">
+                                <%= Math.round((item.income / farmer.bestMonthIncome * 100)) %>%
+                            </div>
+                            <div class="month-income">₹<%= item.income.toLocaleString('en-IN') %></div>
+                        </div>
+                    <% }); %>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="info-box">
+                <strong>💡 कैसे किया गया यह अनुमान? / How was this prediction made?</strong><br>
+                हमारे AI मॉडल ने वास्तविक डेटा का उपयोग करके आपकी आय का अनुमान लगाया है:
+                <ul style="margin: 10px 0; padding-left: 20px; font-size: 13px;">
+                    <li>🌧️ वास्तविक वर्षा डेटा (Actual Rainfall)</li>
+                    <li>🌱 NDVI वनस्पति सूचकांक (Vegetation Health)</li>
+                    <li>📈 मंडी में फसल का वर्तमान मूल्य (Market Price)</li>
+                    <li>📊 कीमत में बदलाव (Price Shock)</li>
+                    <li>📅 पिछली महीनों की आय (Historical Income)</li>
+                </ul>
+                <strong>Your average monthly income is approximately ₹<%= farmer.averageMonthlyIncome %>.</strong> You can plan your loan EMI
+                based on this income using real agricultural data and machine learning model.
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="/agriflow/apply" class="btn-next btn-primary">
+                    📊 Plan My Loan →
+                </a>
+                <a href="/agriflow/monthly-income" class="btn-next btn-secondary">
+                    🔄 Try Again
+                </a>
+                <a href="/agriflow" class="btn-next btn-secondary">
+                    🏠 Back to Home
+                </a>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <%- include('partials/footer-agriflow') %>
+</body>
+
+</html>

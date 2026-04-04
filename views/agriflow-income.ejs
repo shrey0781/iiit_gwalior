@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Know Your Monthly Income - AgriFlow</title>
+    <link rel="stylesheet" href="/css/agriflow.css">
+    <style>
+        .income-form-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .income-form-title {
+            color: white;
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .income-form-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            text-align: center;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <%- include('partials/navbar-agriflow') %>
+
+        <!-- Form Section -->
+        <section class="section">
+            <div class="income-form-container">
+                <h2 class="income-form-title">💰 Know Your Monthly Income</h2>
+                <p class="income-form-subtitle">अपनी मासिक आय जानें / Predict your monthly income earnings</p>
+            </div>
+
+            <div class="form-container">
+                <p style="text-align: center; color: #666; margin-bottom: 20px;">
+                    📌 हमारा AI मॉडल आपकी फसल और जमीन की जानकारी के आधार पर आपकी मासिक आय का अनुमान लगाएगा।
+                </p>
+
+                <form method="POST" action="/agriflow/monthly-income/result" onsubmit="return validateIncomeForm()">
+
+                    <!-- Name Field -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">👨‍🌾</span>
+                            <span>आपका नाम / Your Name</span>
+                        </label>
+                        <input type="text" id="income_name" name="name" class="form-control"
+                            placeholder="उदाहरण: राज कुमार / e.g. Raj Kumar" required>
+                        <div class="form-helper">आपका पूरा नाम दर्ज करें</div>
+                    </div>
+
+                    <!-- District Field -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">📍</span>
+                            <span>आपका जिला / Your District</span>
+                        </label>
+                        <input type="text" id="income_district" name="district" class="form-control"
+                            placeholder="उदाहरण: इंदौर, मध्य प्रदेश / e.g. Indore, M.P." required>
+                        <div class="form-helper">अपने जिले का नाम दर्ज करें</div>
+                    </div>
+
+                    <!-- Crop Selection -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">🌾</span>
+                            <span>मुख्य फसल / Main Crop</span>
+                        </label>
+                        <select id="income_crop" name="crop" class="form-control" required>
+                            <option value="">-- फसल चुनें / Select Crop --</option>
+                            <option value="धान">🍚 धान / Rice</option>
+                            <option value="गेहूं">🌾 गेहूं / Wheat</option>
+                            <option value="कपास">🌾 कपास / Cotton</option>
+                            <option value="गन्ना">🌾 गन्ना / Sugarcane</option>
+                            <option value="सोयाबीन">🌾 सोयाबीन / Soybean</option>
+                            <option value="मक्का">🌾 मक्का / Maize</option>
+                            <option value="अन्य">❓ अन्य / Other</option>
+                        </select>
+                        <div class="form-helper">आप मुख्य रूप से कौन सी फसल उगाते हैं?</div>
+                    </div>
+
+                    <!-- Land Size -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">🏡</span>
+                            <span>भूमि का आकार / Land Size (एकड़ / acres)</span>
+                        </label>
+                        <input type="number" id="income_land" name="land" class="form-control" placeholder="उदाहरण: 5 / e.g. 5"
+                            step="0.5" min="0.5" required>
+                        <div class="form-helper">आपके पास कितनी भूमि है? (एकड़ में)</div>
+                    </div>
+
+                    <!-- Fertilizer Use -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">🧪</span>
+                            <span>खाद का उपयोग / Fertilizer Usage (kg)</span>
+                        </label>
+                        <input type="number" id="income_fertilizer" name="fertilizer" class="form-control"
+                            placeholder="उदाहरण: 200 / e.g. 200" step="10" min="0" required>
+                        <div class="form-helper">आप कितना खाद का प्रयोग करते हैं? (किग्रा में)</div>
+                    </div>
+
+                    <!-- Water Source -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">💧</span>
+                            <span>जल स्रोत / Water Source</span>
+                        </label>
+                        <select id="income_water" name="water_source" class="form-control" required>
+                            <option value="">-- जल स्रोत चुनें / Select Water Source --</option>
+                            <option value="बोरवेल">🔱 बोरवेल / Borewell</option>
+                            <option value="कुआँ">💧 कुआँ / Well</option>
+                            <option value="नहर">🌊 नहर / Canal</option>
+                            <option value="तालाब">🐟 तालाब / Pond</option>
+                            <option value="वर्षा">☔ वर्षा जल / Rainwater</option>
+                        </select>
+                        <div class="form-helper">आप सिंचाई के लिए किस जल स्रोत का उपयोग करते हैं?</div>
+                    </div>
+
+                    <!-- Pesticide Use -->
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="form-label-emoji">🐛</span>
+                            <span>कीटनाशक का उपयोग / Pesticide Usage (liters)</span>
+                        </label>
+                        <input type="number" id="income_pesticide" name="pesticide" class="form-control"
+                            placeholder="उदाहरण: 5 / e.g. 5" step="0.5" min="0" required>
+                        <div class="form-helper">आप कितना कीटनाशक का प्रयोग करते हैं? (लीटर में)</div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 30px;">
+                        <button type="submit" class="btn-hero" style="margin: 0; width: auto; padding: 12px 30px;">
+                            🚀 Predict My Income →
+                        </button>
+                        <a href="/agriflow" style="padding: 12px 30px; border: 2px solid #667eea; border-radius: 8px; text-decoration: none; color: #667eea; font-weight: 600; display: inline-flex; align-items: center;">
+                            ← Back
+                        </a>
+                    </div>
+
+                </form>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <%- include('partials/footer-agriflow') %>
+
+    <script>
+        function validateIncomeForm() {
+            const name = document.getElementById('income_name').value.trim();
+            const district = document.getElementById('income_district').value.trim();
+            const crop = document.getElementById('income_crop').value;
+            const land = parseFloat(document.getElementById('income_land').value);
+            const fertilizer = parseFloat(document.getElementById('income_fertilizer').value);
+            const water = document.getElementById('income_water').value;
+            const pesticide = parseFloat(document.getElementById('income_pesticide').value);
+
+            if (!name) {
+                alert('कृपया अपना नाम दर्ज करें / Please enter your name');
+                return false;
+            }
+            if (!district) {
+                alert('कृपया अपना जिला दर्ज करें / Please enter your district');
+                return false;
+            }
+            if (!crop) {
+                alert('कृपया फसल चुनें / Please select a crop');
+                return false;
+            }
+            if (land < 0.5) {
+                alert('जमीन कम से कम 0.5 एकड़ होनी चाहिए / Land should be at least 0.5 acres');
+                return false;
+            }
+            if (!water) {
+                alert('कृपया जल स्रोत चुनें / Please select water source');
+                return false;
+            }
+
+            return true;
+        }
+    </script>
+</body>
+
+</html>
