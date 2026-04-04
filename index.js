@@ -308,6 +308,222 @@ Instructions:
   }
 });
 
+// ==================== Monthly Income Prediction Routes ====================
+
+// Monthly Income Page
+app.get("/agriflow/monthly-income", (req, res) => {
+  res.render("agriflow-income");
+});
+
+// Monthly Income Result
+app.post("/agriflow/monthly-income/result", async (req, res) => {
+  try {
+    const name = req.body.name || "राज कुमार";
+    const district = req.body.district || "विदिशा";
+    const crop = req.body.crop || "गेहूं";
+    const land = parseFloat(req.body.land) || 4;
+    const fertilizer = parseFloat(req.body.fertilizer) || 200;
+    const waterSource = req.body.water_source || "बोरवेल";
+    const pesticide = parseFloat(req.body.pesticide) || 5;
+
+    // Generate monthly income prediction
+    const { monthlyData, rainfall, ndvi, mandiPrice, priceShock } = await generateMonthlyIncome(
+      crop, land, fertilizer, pesticide, district
+    );
+
+    const incomeValues = monthlyData.map(m => m.income);
+    const averageMonthlyIncome = Math.floor(incomeValues.reduce((a, b) => a + b, 0) / 12);
+    const maxIncome = Math.max(...incomeValues);
+    const minIncome = Math.min(...incomeValues);
+
+    const bestMonthIndex = incomeValues.indexOf(maxIncome);
+    const lowestMonthIndex = incomeValues.indexOf(minIncome);
+
+    const monthNames = [
+      "जनवरी / January", "फरवरी / February", "मार्च / March", "अप्रैल / April",
+      "मई / May", "जून / June", "जुलाई / July", "अगस्त / August",
+      "सितम्बर / September", "अक्टूबर / October", "नवम्बर / November", "दिसम्बर / December"
+    ];
+
+    const farmer = {
+      name: name,
+      district: district,
+      crop: crop,
+      land: land,
+      fertilizer: fertilizer,
+      waterSource: waterSource,
+      pesticide: pesticide,
+      averageMonthlyIncome: averageMonthlyIncome,
+      bestMonth: monthNames[bestMonthIndex],
+      bestMonthIncome: maxIncome,
+      lowestMonth: monthNames[lowestMonthIndex],
+      lowestMonthIncome: minIncome,
+      monthlyIncomeData: monthlyData,
+      rainfall: rainfall,
+      ndvi: ndvi,
+      mandiPrice: mandiPrice,
+      priceShock: priceShock
+    };
+
+    res.render("agriflow-income-result", { farmer });
+  } catch (error) {
+    console.error("Error in income prediction:", error);
+    res.status(500).send("Error processing income prediction");
+  }
+});
+
+// ==================== Helper Functions ====================
+
+async function generateMonthlyIncome(crop, land, fertilizer, pesticide, district) {
+  const months = [
+    "जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून",
+    "जुलाई", "अगस्त", "सितम्बर", "अक्टूबर", "नवम्बर", "दिसम्बर"
+  ];
+
+  const rainfall = await fetchRainfallData(district);
+  const ndvi = getNDVIValue(crop, fertilizer, pesticide);
+  const mandiPrice = getMandiPrice(crop);
+  const priceShock = getPriceShockPercentage();
+  const { lag1, lag2 } = getNetIncomeLags(crop, land, mandiPrice);
+
+  const features = [rainfall, ndvi, mandiPrice, priceShock, lag1, lag2];
+  let mlPrediction = await predictIncomeWithML(features);
+
+  const monthlyData = [];
+  const cropRevenuePerUnit = {
+    "धान": 1.2,
+    "गेहूं": 1.1,
+    "कपास": 1.5,
+    "गन्ना": 2.0,
+    "सोयाबीन": 1.3,
+    "मक्का": 1.15,
+    "अन्य": 1.0
+  };
+
+  const revenueMultiplier = cropRevenuePerUnit[crop] || cropRevenuePerUnit["अन्य"];
+  let baseMonthlyIncome = (mandiPrice * land * revenueMultiplier) / 12;
+
+  if (mlPrediction && mlPrediction > 0) {
+    baseMonthlyIncome = mlPrediction / 12;
+  }
+
+  const seasonalPatterns = {
+    "धान": [0.8, 0.7, 0.6, 0.5, 0.6, 1.2, 1.5, 1.8, 1.9, 1.5, 0.9, 0.8],
+    "गेहूं": [0.6, 0.6, 0.7, 1.0, 1.5, 1.8, 1.9, 1.5, 0.8, 0.7, 0.6, 0.5],
+    "कपास": [0.7, 0.8, 0.9, 1.2, 1.5, 1.7, 1.6, 1.4, 1.0, 0.8, 0.6, 0.5],
+    "गन्ना": [1.0, 1.0, 1.0, 1.0, 1.1, 1.2, 1.3, 1.3, 1.2, 1.0, 0.9, 0.9],
+    "सोयाबीन": [0.7, 0.8, 0.9, 1.2, 1.6, 1.8, 1.7, 1.4, 0.9, 0.7, 0.6, 0.5],
+    "मक्का": [0.7, 0.8, 0.8, 1.1, 1.5, 1.8, 1.9, 1.6, 0.9, 0.7, 0.6, 0.5],
+    "अन्य": [0.8, 0.8, 0.8, 1.0, 1.2, 1.3, 1.3, 1.2, 0.9, 0.8, 0.8, 0.8]
+  };
+
+  const seasonalPattern = seasonalPatterns[crop] || seasonalPatterns["अन्य"];
+  const ndviAdjustment = 0.8 + ndvi * 0.25;
+  const priceAdjustment = 1 + priceShock / 100;
+  const rainfallAdjustment = 1.0 + Math.min(rainfall, 50) / 500;
+
+  for (let i = 0; i < 12; i++) {
+    let monthlyIncome = baseMonthlyIncome * seasonalPattern[i];
+    monthlyIncome *= ndviAdjustment;
+    monthlyIncome *= priceAdjustment;
+    monthlyIncome *= rainfallAdjustment;
+
+    const randomVariation = 0.95 + Math.random() * 0.1;
+    monthlyIncome = Math.floor(monthlyIncome * randomVariation);
+
+    monthlyData.push({
+      month: months[i],
+      income: Math.max(500, monthlyIncome)
+    });
+  }
+
+  return { monthlyData, rainfall, ndvi, mandiPrice, priceShock };
+}
+
+async function fetchRainfallData(district) {
+  try {
+    const apiKey = process.env.WEATHER_API_KEY || "demo_key";
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${district}&appid=${apiKey}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.rain ? data.rain["1h"] || 0 : 0;
+  } catch (error) {
+    console.log("Rain fetch error:", error.message);
+    return 5;
+  }
+}
+
+function getNDVIValue(crop, fertilizer, pesticide) {
+  const cropNDVIBase = {
+    "धान": 0.65,
+    "गेहूं": 0.60,
+    "कपास": 0.58,
+    "गन्ना": 0.68,
+    "सोयाबीन": 0.62,
+    "मक्का": 0.64,
+    "अन्य": 0.60
+  };
+
+  let ndvi = cropNDVIBase[crop] || cropNDVIBase["अन्य"];
+  if (fertilizer > 200) ndvi += 0.05;
+  if (pesticide > 5) ndvi += 0.03;
+  ndvi = Math.min(0.85, Math.max(0.35, ndvi));
+  return parseFloat(ndvi.toFixed(3));
+}
+
+function getMandiPrice(crop) {
+  const mandiPrices = {
+    "धान": 2100,
+    "गेहूं": 2200,
+    "कपास": 5800,
+    "गन्ना": 280,
+    "सोयाबीन": 4500,
+    "मक्का": 1800,
+    "अन्य": 2500
+  };
+
+  const basePrice = mandiPrices[crop] || mandiPrices["अन्य"];
+  const variation = 0.95 + Math.random() * 0.1;
+  return Math.floor(basePrice * variation);
+}
+
+function getPriceShockPercentage() {
+  const shock = -10 + Math.random() * 20;
+  return parseFloat(shock.toFixed(2));
+}
+
+function getNetIncomeLags(crop, land, mandiPrice) {
+  const estimatedCurrentIncome =
+    crop === "धान" || crop === "गेहूं"
+      ? mandiPrice * 25 * land
+      : mandiPrice * 20 * land;
+
+  const lag1 = Math.floor(estimatedCurrentIncome * 0.8);
+  const lag2 = Math.floor(estimatedCurrentIncome * 0.75);
+  return { lag1, lag2 };
+}
+
+async function predictIncomeWithML(features) {
+  try {
+    const response = await fetch("http://localhost:5000/predict-income", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ features: features })
+    });
+
+    if (!response.ok) {
+      console.log("ML prediction error, using fallback");
+      return null;
+    }
+
+    const data = await response.json();
+    return data.predicted_income;
+  } catch (error) {
+    console.log("Flask backend unavailable:", error.message);
+    return null;
+  }
+}
+
 app.use("/", authRoutes);
 
 app.listen(3000, () => {
