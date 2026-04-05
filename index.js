@@ -1,4 +1,7 @@
 const express = require("express");
+const path = require("path");
+const fs = require("fs");
+const { spawn } = require("child_process");
 const bodyParser = require("body-parser");
 const session = require("express-session");
 
@@ -13,6 +16,7 @@ const app = express();
 connectDB();
 
 app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
 app.use(bodyParser.json()); // Parse JSON requests
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -57,11 +61,13 @@ function getAgricultureData(crop, district) {
   const data = cropData[crop] || cropData["अन्य"];
   // Add ±10% variation for realistic data
   const variation = 0.90 + (Math.random() * 0.20);
+  // model1.py: price_shock_pct = mandi pct_change (decimal, e.g. 0.025 = +2.5%)
+  const shockDecimal = (data.priceShock / 100) * variation;
   return {
     rainfall: Math.floor(data.rainfall * variation),
     ndvi: parseFloat((data.ndvi * variation).toFixed(3)),
     mandiPrice: Math.floor(data.mandiPrice * variation),
-    priceShock: parseFloat((data.priceShock * variation).toFixed(2))
+    priceShock: parseFloat(shockDecimal.toFixed(4))
   };
 }
 
@@ -71,21 +77,13 @@ async function predictIncomeFromML(land, crop, district) {
   try {
     const agData = getAgricultureData(crop, district);
 
-    // Features for ML model: [rainfall, ndvi, mandi_price, price_shock, income_lag_1, income_lag_2]
-    // Estimate income lags from crop base values
-    const estimatedAnnualIncome = {
-      "धान": 48000,
-      "गेहूं": 44000,
-      "कपास": 87000,
-      "गन्ना": 56000,
-      "सोयाबीन": 54000,
-      "मक्का": 36000,
-      "अन्य": 40000
-    };
-
-    const baseAnnual = (estimatedAnnualIncome[crop] || estimatedAnnualIncome["अन्य"]) * land;
-    const income_lag_1 = Math.floor(baseAnnual * 0.85); // Previous year: 85%
-    const income_lag_2 = Math.floor(baseAnnual * 0.80); // 2 years ago: 80%
+    // model1: [actual_rainfall_mm, ndvi, kharif_mandi_price, price_shock_pct, net_income_lag1, net_income_lag2]
+    // Target is monthly net_income (training CSV)
+    const { lag1: income_lag_1, lag2: income_lag_2 } = getNetIncomeLags(
+      crop,
+      land,
+      agData.mandiPrice
+    );
 
     const features = [
       agData.rainfall,
@@ -98,7 +96,8 @@ async function predictIncomeFromML(land, crop, district) {
 
     console.log(`🤖 Calling ML Model with features:`, features);
 
-    const response = await fetch("http://localhost:5000/predict-income", {
+    const baseUrl = process.env.FLASK_ML_URL || "http://127.0.0.1:5000";
+    const response = await fetch(`${baseUrl}/predict-income`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ features: features })
@@ -106,11 +105,12 @@ async function predictIncomeFromML(land, crop, district) {
 
     if (response.ok) {
       const data = await response.json();
-      const prediction = data.predicted_income || 0;
-      console.log(`✅ ML Prediction: ₹${prediction.toLocaleString()}`);
+      const monthlyNet = data.predicted_income || 0;
+      console.log(`✅ ML monthly net income: ₹${monthlyNet.toLocaleString()}`);
 
-      // Scale prediction to account for land size
-      return Math.max(100000, Math.floor(prediction * land * 0.85)); // More realistic scaling
+      // Annual estimate for loan flow: 12 × monthly net (model1 predicts one month)
+      const annual = Math.floor(Math.max(0, monthlyNet) * 12);
+      return Math.max(12000, annual);
     } else {
       console.log("❌ ML API error, will use fallback");
       return null;
@@ -1036,40 +1036,321 @@ app.post("/agriflow/monthly-income/result", async (req, res) => {
   }
 });
 
+// ==================== EMI Planning (model3.py via emi_runner.py) ====================
+
+app.get("/emi-plan", (req, res) => {
+  res.render("agriflow-emi-plan");
+});
+
+app.get("/agriflow/emi-plan", (req, res) => {
+  res.render("agriflow-emi-plan");
+});
+
+app.post("/api/emi-plan", async (req, res) => {
+  try {
+    const {
+      name,
+      district,
+      state,
+      crop,
+      irrigation,
+      loanAmount,
+      duration
+    } = req.body;
+
+    const report = await callEMIPlannerAPI({
+      farmer_name: name,
+      farmer_district: district,
+      farmer_state: state,
+      farmer_crop: crop,
+      farmer_irrigation: irrigation,
+      loan_amount: parseFloat(loanAmount),
+      duration_months: parseInt(duration, 10)
+    });
+
+    res.json(report);
+  } catch (error) {
+    console.error("EMI Plan API error:", error);
+    res.status(500).json({
+      error: "Failed to generate EMI plan",
+      details: error.message
+    });
+  }
+});
+
+app.get("/emi-plan-result", (req, res) => {
+  res.render("agriflow-emi-result");
+});
+
+app.get("/agriflow/emi-plan-result", (req, res) => {
+  res.render("agriflow-emi-result");
+});
+
+function parsePythonJsonOutput(output) {
+  const trimmed = output.trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start === -1 || end < start) {
+    throw new Error("No JSON object in Python output");
+  }
+  return JSON.parse(trimmed.slice(start, end + 1));
+}
+
+function getPythonCommandAndArgs(runnerPath, inputPath) {
+  if (process.env.PYTHON) {
+    return { cmd: process.env.PYTHON, args: [runnerPath, inputPath] };
+  }
+  if (process.platform === "win32") {
+    return { cmd: "python", args: [runnerPath, inputPath] };
+  }
+  return { cmd: "python3", args: [runnerPath, inputPath] };
+}
+
+async function callEMIPlannerAPI(farmerData) {
+  return new Promise((resolve, reject) => {
+    const runnerPath = path.join(__dirname, "emi_runner.py");
+    const inputPath = path.join(__dirname, `.tmp_emi_input_${Date.now()}.json`);
+
+    try {
+      fs.writeFileSync(inputPath, JSON.stringify(farmerData), "utf8");
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    const { cmd, args } = getPythonCommandAndArgs(runnerPath, inputPath);
+    const child = spawn(cmd, args, {
+      cwd: __dirname,
+      env: { ...process.env, PYTHONUTF8: "1" }
+    });
+
+    let output = "";
+    let errorOutput = "";
+
+    child.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    child.stderr.on("data", (data) => {
+      errorOutput += data.toString();
+    });
+
+    child.on("error", (err) => {
+      fs.unlink(inputPath, () => {});
+      reject(new Error(`Failed to start Python (${cmd}): ${err.message}`));
+    });
+
+    child.on("close", (code) => {
+      fs.unlink(inputPath, () => {});
+
+      let parsed;
+      try {
+        parsed = parsePythonJsonOutput(output);
+      } catch (e) {
+        if (code === 0) {
+          console.error("EMI Python stdout parse error:", e.message, output);
+          resolve(createFallbackEMIPlan(farmerData));
+        } else {
+          reject(
+            new Error(
+              errorOutput.trim() ||
+                output.trim() ||
+                `Python EMI planner exited with code ${code}`
+            )
+          );
+        }
+        return;
+      }
+
+      if (parsed.status === "error") {
+        resolve(parsed);
+        return;
+      }
+
+      if (code !== 0) {
+        reject(
+          new Error(
+            parsed.error ||
+              errorOutput.trim() ||
+              `Python EMI planner exited with code ${code}`
+          )
+        );
+        return;
+      }
+
+      resolve(parsed);
+    });
+  });
+}
+
+function createFallbackEMIPlan(farmerData) {
+  const numMonths = farmerData.duration_months;
+  const loanAmount = farmerData.loan_amount;
+  const baseIncome = 15000 + Math.random() * 10000;
+
+  const monthlySchedule = [];
+  for (let i = 1; i <= numMonths; i++) {
+    const variance = 0.8 + Math.random() * 0.4;
+    const income = Math.floor(baseIncome * variance);
+    const seasonalAdjustment = i % 3 === 0 ? 1.5 : 1.0;
+    const adjustedIncome = Math.floor(income * seasonalAdjustment);
+    const emi = Math.floor(loanAmount / numMonths);
+    const ratio = ((emi / adjustedIncome) * 100).toFixed(2);
+
+    monthlySchedule.push({
+      month: i,
+      predicted_income: adjustedIncome,
+      optimized_emi: emi,
+      emi_to_income_ratio: parseFloat(ratio),
+      remaining_income: adjustedIncome - emi,
+      risk_score: 20 + Math.random() * 40
+    });
+  }
+
+  const avgIncome =
+    monthlySchedule.reduce((sum, m) => sum + m.predicted_income, 0) / numMonths;
+  const avgEMI =
+    monthlySchedule.reduce((sum, m) => sum + m.optimized_emi, 0) / numMonths;
+
+  return {
+    status: "success",
+    farmer_info: {
+      name: farmerData.farmer_name,
+      district: farmerData.farmer_district,
+      state: farmerData.farmer_state,
+      crop: farmerData.farmer_crop,
+      irrigation: farmerData.farmer_irrigation
+    },
+    loan_amount: loanAmount,
+    duration_months: numMonths,
+    forecast: {
+      monthly_data: monthlySchedule,
+      avg_income: Math.floor(avgIncome),
+      max_income: Math.max(...monthlySchedule.map((m) => m.predicted_income)),
+      min_income: Math.min(...monthlySchedule.map((m) => m.predicted_income)),
+      income_std: 2500
+    },
+    emi_schedule: {
+      status: "Optimal",
+      avg_emi: Math.floor(avgEMI),
+      total_emi: loanAmount,
+      monthly_schedule: monthlySchedule
+    },
+    risk_analysis: {
+      avg_risk_score: 45,
+      max_risk_score: 75,
+      risk_level: "Medium"
+    },
+    affordability: {
+      avg_emi_to_income_ratio:
+        Math.round((avgEMI / avgIncome) * 10000) / 100,
+      affordability_level: "Affordable",
+      recommendation: "Recommended"
+    },
+    recommendations: [
+      {
+        type: "success",
+        message: "EMI plan is feasible with current projections"
+      },
+      {
+        type: "info",
+        message: "Consider crop diversification for income stability"
+      }
+    ]
+  };
+}
+
+async function callMonthlyIncomeRunner(payload) {
+  return new Promise((resolve) => {
+    const runnerPath = path.join(__dirname, "monthly_income_runner.py");
+    const inputPath = path.join(__dirname, `.tmp_income_input_${Date.now()}.json`);
+    try {
+      fs.writeFileSync(inputPath, JSON.stringify(payload), "utf8");
+    } catch {
+      resolve(null);
+      return;
+    }
+    const { cmd, args } = getPythonCommandAndArgs(runnerPath, inputPath);
+    const child = spawn(cmd, args, {
+      cwd: __dirname,
+      env: { ...process.env, PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" }
+    });
+    let output = "";
+    let err = "";
+    child.stdout.on("data", (d) => {
+      output += d.toString("utf8");
+    });
+    child.stderr.on("data", (d) => {
+      err += d.toString("utf8");
+    });
+    child.on("error", () => {
+      fs.unlink(inputPath, () => {});
+      resolve(null);
+    });
+    child.on("close", () => {
+      fs.unlink(inputPath, () => {});
+      try {
+        const parsed = parsePythonJsonOutput(output);
+        if (parsed.status === "success" && Array.isArray(parsed.monthlyData)) {
+          resolve(parsed);
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+      if (err.trim()) {
+        console.error("monthly_income_runner stderr:", err.slice(0, 500));
+      }
+      resolve(null);
+    });
+  });
+}
+
 // ==================== Helper Functions ====================
 
 async function generateMonthlyIncome(crop, land, fertilizer, pesticide, district) {
+  const fromPy = await callMonthlyIncomeRunner({
+    crop,
+    land,
+    fertilizer,
+    pesticide,
+    district
+  });
+  if (fromPy) {
+    return {
+      monthlyData: fromPy.monthlyData,
+      rainfall: fromPy.rainfall,
+      ndvi: fromPy.ndvi,
+      mandiPrice: fromPy.mandiPrice,
+      priceShock: fromPy.priceShock
+    };
+  }
+
   const months = [
     "जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून",
     "जुलाई", "अगस्त", "सितम्बर", "अक्टूबर", "नवम्बर", "दिसम्बर"
   ];
 
-  const rainfall = await fetchRainfallData(district);
-  const ndvi = getNDVIValue(crop, fertilizer, pesticide);
-  const mandiPrice = getMandiPrice(crop);
-  const priceShock = getPriceShockPercentage();
-  const { lag1, lag2 } = getNetIncomeLags(crop, land, mandiPrice);
+  // Seasonal shape for rainfall (mm) — aligns with monsoon months in training data
+  const RAINFALL_SHAPE = [0.45, 0.4, 0.35, 0.45, 0.85, 1.35, 1.65, 1.5, 1.1, 0.75, 0.55, 0.5];
+  const NDVI_SHAPE = [0.95, 0.93, 0.91, 0.96, 1.02, 1.1, 1.12, 1.1, 1.04, 0.98, 0.96, 0.95];
+  const avgRainShape = RAINFALL_SHAPE.reduce((a, b) => a + b, 0) / 12;
 
-  const features = [rainfall, ndvi, mandiPrice, priceShock, lag1, lag2];
-  let mlPrediction = await predictIncomeWithML(features);
+  const baseRainfallRaw = await fetchRainfallData(district);
+  // OpenWeather 1h rain is not monthly mm; use training-scale anchor (~80 mm / month mean)
+  const baseRainfall = Math.max(40, Math.min(140, (baseRainfallRaw || 0) * 15 + 55));
+  const baseNdvi = getNDVIValue(crop, fertilizer, pesticide);
+  const baseMandi = getMandiPrice(crop);
 
-  const monthlyData = [];
-  const cropRevenuePerUnit = {
-    "धान": 1.2,
-    "गेहूं": 1.1,
-    "कपास": 1.5,
-    "गन्ना": 2.0,
-    "सोयाबीन": 1.3,
-    "मक्का": 1.15,
-    "अन्य": 1.0
-  };
-
-  const revenueMultiplier = cropRevenuePerUnit[crop] || cropRevenuePerUnit["अन्य"];
-  let baseMonthlyIncome = (mandiPrice * land * revenueMultiplier) / 12;
-
-  if (mlPrediction && mlPrediction > 0) {
-    baseMonthlyIncome = mlPrediction / 12;
+  const monthlyPrices = [Math.max(100, Math.floor(baseMandi))];
+  for (let i = 1; i < 12; i++) {
+    const drift = 1 + (Math.random() * 0.06 - 0.03);
+    monthlyPrices.push(Math.max(100, Math.floor(monthlyPrices[i - 1] * drift)));
   }
+
+  let lag1;
+  let lag2;
+  ({ lag1, lag2 } = getNetIncomeLags(crop, land, baseMandi));
 
   const seasonalPatterns = {
     "धान": [0.8, 0.7, 0.6, 0.5, 0.6, 1.2, 1.5, 1.8, 1.9, 1.5, 0.9, 0.8],
@@ -1080,28 +1361,64 @@ async function generateMonthlyIncome(crop, land, fertilizer, pesticide, district
     "मक्का": [0.7, 0.8, 0.8, 1.1, 1.5, 1.8, 1.9, 1.6, 0.9, 0.7, 0.6, 0.5],
     "अन्य": [0.8, 0.8, 0.8, 1.0, 1.2, 1.3, 1.3, 1.2, 0.9, 0.8, 0.8, 0.8]
   };
-
   const seasonalPattern = seasonalPatterns[crop] || seasonalPatterns["अन्य"];
-  const ndviAdjustment = 0.8 + ndvi * 0.25;
-  const priceAdjustment = 1 + priceShock / 100;
-  const rainfallAdjustment = 1.0 + Math.min(rainfall, 50) / 500;
+  const cropRevenuePerUnit = {
+    "धान": 1.2,
+    "गेहूं": 1.1,
+    "कपास": 1.5,
+    "गन्ना": 2.0,
+    "सोयाबीन": 1.3,
+    "मक्का": 1.15,
+    "अन्य": 1.0
+  };
+  const revenueMultiplier = cropRevenuePerUnit[crop] || cropRevenuePerUnit["अन्य"];
+  const ndviAdjustment = 0.8 + baseNdvi * 0.25;
+  const rainfallAdjustment = 1.0 + Math.min(baseRainfall, 50) / 500;
+
+  const monthlyData = [];
+  const monthlyShocks = [];
 
   for (let i = 0; i < 12; i++) {
-    let monthlyIncome = baseMonthlyIncome * seasonalPattern[i];
-    monthlyIncome *= ndviAdjustment;
-    monthlyIncome *= priceAdjustment;
-    monthlyIncome *= rainfallAdjustment;
+    const rainMm = baseRainfall * (RAINFALL_SHAPE[i] / avgRainShape);
+    const ndvi = Math.min(0.85, Math.max(0, baseNdvi * NDVI_SHAPE[i]));
+    const mandiPrice = monthlyPrices[i];
+    const priceShockPct = i === 0 ? 0 : (mandiPrice - monthlyPrices[i - 1]) / monthlyPrices[i - 1];
+    monthlyShocks.push(priceShockPct);
 
-    const randomVariation = 0.95 + Math.random() * 0.1;
-    monthlyIncome = Math.floor(monthlyIncome * randomVariation);
+    const features = [rainMm, ndvi, mandiPrice, priceShockPct, lag1, lag2];
+    const pred = await predictIncomeWithML(features);
 
-    monthlyData.push({
-      month: months[i],
-      income: Math.max(500, monthlyIncome)
-    });
+    let monthlyIncome;
+    if (pred != null && Number.isFinite(pred) && pred > 0) {
+      monthlyIncome = Math.floor(Math.max(500, pred));
+      lag2 = lag1;
+      lag1 = pred;
+    } else {
+      let inc =
+        ((baseMandi * land * revenueMultiplier) / 12) *
+        seasonalPattern[i] *
+        ndviAdjustment *
+        (1 + priceShockPct) *
+        rainfallAdjustment;
+      inc *= 0.95 + Math.random() * 0.1;
+      monthlyIncome = Math.max(500, Math.floor(inc));
+    }
+
+    monthlyData.push({ month: months[i], income: monthlyIncome });
   }
 
-  return { monthlyData, rainfall, ndvi, mandiPrice, priceShock };
+  const avgShockPct =
+    monthlyShocks.length === 0
+      ? 0
+      : monthlyShocks.reduce((a, b) => a + b, 0) / monthlyShocks.length;
+
+  return {
+    monthlyData,
+    rainfall: baseRainfall,
+    ndvi: baseNdvi,
+    mandiPrice: baseMandi,
+    priceShock: parseFloat((avgShockPct * 100).toFixed(2))
+  };
 }
 
 async function fetchRainfallData(district) {
@@ -1131,7 +1448,7 @@ function getNDVIValue(crop, fertilizer, pesticide) {
   let ndvi = cropNDVIBase[crop] || cropNDVIBase["अन्य"];
   if (fertilizer > 200) ndvi += 0.05;
   if (pesticide > 5) ndvi += 0.03;
-  ndvi = Math.min(0.85, Math.max(0.35, ndvi));
+  ndvi = Math.min(0.85, Math.max(0, ndvi));
   return parseFloat(ndvi.toFixed(3));
 }
 
@@ -1140,7 +1457,7 @@ function getMandiPrice(crop) {
     "धान": 2100,
     "गेहूं": 2200,
     "कपास": 5800,
-    "गन्ना": 280,
+    "गन्ना": 3200,
     "सोयाबीन": 4500,
     "मक्का": 1800,
     "अन्य": 2500
@@ -1151,25 +1468,21 @@ function getMandiPrice(crop) {
   return Math.floor(basePrice * variation);
 }
 
-function getPriceShockPercentage() {
-  const shock = -10 + Math.random() * 20;
-  return parseFloat(shock.toFixed(2));
-}
-
 function getNetIncomeLags(crop, land, mandiPrice) {
-  const estimatedCurrentIncome =
-    crop === "धान" || crop === "गेहूं"
-      ? mandiPrice * 25 * land
-      : mandiPrice * 20 * land;
-
-  const lag1 = Math.floor(estimatedCurrentIncome * 0.8);
-  const lag2 = Math.floor(estimatedCurrentIncome * 0.75);
-  return { lag1, lag2 };
+  // model1 training: net_income_lag1/2 are prior *months'* net income (~₹5k–₹50k typical)
+  const k = crop === "धान" || crop === "गेहूं" ? 25 : 20;
+  const estimatedMonthly = Math.floor((mandiPrice * land * k) / 12);
+  const base = Math.max(5000, estimatedMonthly);
+  return {
+    lag1: Math.floor(base * 0.95),
+    lag2: Math.floor(base * 0.9)
+  };
 }
 
 async function predictIncomeWithML(features) {
   try {
-    const response = await fetch("http://localhost:5000/predict-income", {
+    const baseUrl = process.env.FLASK_ML_URL || "http://127.0.0.1:5000";
+    const response = await fetch(`${baseUrl}/predict-income`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ features: features })

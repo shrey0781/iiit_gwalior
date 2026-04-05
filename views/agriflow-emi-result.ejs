@@ -448,6 +448,11 @@
     <script>
         let reportData = null;
 
+        function num(x, fallback = 0) {
+            const v = Number(x);
+            return Number.isFinite(v) ? v : fallback;
+        }
+
         // Load report from session storage
         function loadReportData() {
             const stored = sessionStorage.getItem('emiReport');
@@ -558,10 +563,10 @@
                         </div>
                         <div class="card">
                             <div class="card-title">Avg EMI to Income</div>
-                            <div class="card-value">${(affordability.avg_emi_to_income_ratio || 0).toFixed(1)}%</div>
+                            <div class="card-value">${num(affordability.avg_emi_to_income_ratio).toFixed(1)}%</div>
                             <div class="card-subtext">
-                                <span class="badge ${affordability.avg_emi_to_income_ratio > 40 ? 'badge-danger' : 'badge-success'}">
-                                    ${affordability.avg_emi_to_income_ratio > 40 ? 'High Burden' : 'Manageable'}
+                                <span class="badge ${num(affordability.avg_emi_to_income_ratio) > 40 ? 'badge-danger' : 'badge-success'}">
+                                    ${num(affordability.avg_emi_to_income_ratio) > 40 ? 'High Burden' : 'Manageable'}
                                 </span>
                             </div>
                         </div>
@@ -600,11 +605,11 @@
                     <div class="cards-grid">
                         <div class="card">
                             <div class="card-title">Average Risk Score</div>
-                            <div class="card-value">${(risk.avg_risk_score || 0).toFixed(1)}/100</div>
+                            <div class="card-value">${num(risk.avg_risk_score).toFixed(1)}/100</div>
                         </div>
                         <div class="card">
                             <div class="card-title">Maximum Risk</div>
-                            <div class="card-value">${(risk.max_risk_score || 0).toFixed(1)}/100</div>
+                            <div class="card-value">${num(risk.max_risk_score).toFixed(1)}/100</div>
                         </div>
                         <div class="card">
                             <div class="card-title">Risk Level</div>
@@ -676,10 +681,10 @@
 
             const schedule = reportData.emi_schedule.monthly_schedule;
             const months = schedule.map(s => `Month ${s.month}`);
-            const incomes = schedule.map(s => s.predicted_income);
-            const emis = schedule.map(s => s.optimized_emi);
-            const ratios = schedule.map(s => s.emi_to_income_ratio);
-            const risks = schedule.map(s => s.risk_score);
+            const incomes = schedule.map(s => num(s.predicted_income));
+            const emis = schedule.map(s => num(s.optimized_emi));
+            const ratios = schedule.map(s => num(s.emi_to_income_ratio));
+            const risks = schedule.map(s => num(s.risk_score));
 
             // Income Chart
             const incomeCtx = document.getElementById('incomeChart');
@@ -808,24 +813,31 @@
             if (!reportData || !reportData.emi_schedule || !reportData.emi_schedule.monthly_schedule) return;
 
             const schedule = reportData.emi_schedule.monthly_schedule;
-            tbody.innerHTML = schedule.map(s => `
+            tbody.innerHTML = schedule.map(s => {
+                const pi = num(s.predicted_income);
+                const em = num(s.optimized_emi);
+                const ratio = num(s.emi_to_income_ratio);
+                const rem = num(s.remaining_income);
+                const rs = num(s.risk_score);
+                return `
                 <tr>
                     <td><strong>Month ${s.month}</strong></td>
-                    <td>₹${s.predicted_income.toLocaleString()}</td>
-                    <td>₹${s.optimized_emi.toLocaleString()}</td>
+                    <td>₹${pi.toLocaleString()}</td>
+                    <td>₹${em.toLocaleString()}</td>
                     <td>
-                        <span class="badge ${s.emi_to_income_ratio > 40 ? 'badge-danger' : s.emi_to_income_ratio > 30 ? 'badge-warning' : 'badge-success'}">
-                            ${s.emi_to_income_ratio.toFixed(1)}%
+                        <span class="badge ${ratio > 40 ? 'badge-danger' : ratio > 30 ? 'badge-warning' : 'badge-success'}">
+                            ${ratio.toFixed(1)}%
                         </span>
                     </td>
-                    <td>₹${s.remaining_income.toLocaleString()}</td>
+                    <td>₹${rem.toLocaleString()}</td>
                     <td>
-                        <span class="badge ${s.risk_score > 70 ? 'badge-danger' : s.risk_score > 40 ? 'badge-warning' : 'badge-success'}">
-                            ${s.risk_score.toFixed(0)}
+                        <span class="badge ${rs > 70 ? 'badge-danger' : rs > 40 ? 'badge-warning' : 'badge-success'}">
+                            ${rs.toFixed(0)}
                         </span>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function downloadPDF() {

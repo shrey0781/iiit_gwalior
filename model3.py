@@ -2,9 +2,66 @@ import pandas as pd
 import numpy as np
 import pickle
 import json
-from scipy.optimize import linprog
+import sys
 import warnings
 warnings.filterwarnings('ignore')
+
+
+def _allocate_emi_close_to_flat(total_outstanding, lower_bounds, upper_bounds, max_iter=2000):
+    """
+    Choose monthly EMIs with sum = total_outstanding and lb[i] <= x[i] <= ub[i].
+    Iteratively rebalances toward equal payments so the schedule is smooth (unlike
+    linprog with a zero objective, which picks a corner: min EMI most months, spikes
+    at the end).
+    """
+    lb = np.asarray(lower_bounds, dtype=float)
+    ub = np.asarray(upper_bounds, dtype=float)
+    n = len(lb)
+    if n == 0 or np.any(lb > ub + 1e-9):
+        return None
+    s_lb, s_ub = float(lb.sum()), float(ub.sum())
+    if total_outstanding < s_lb - 1e-6 or total_outstanding > s_ub + 1e-6:
+        return None
+
+    target = total_outstanding / n
+    x = np.clip(np.full(n, target), lb, ub)
+
+    for _ in range(max_iter):
+        diff = total_outstanding - float(x.sum())
+        if abs(diff) < 1e-6:
+            break
+        if diff > 0:
+            slack = ub - x
+            mask = slack > 1e-12
+            if not np.any(mask):
+                return None
+            x[mask] += diff * (slack[mask] / slack[mask].sum())
+        else:
+            slack = x - lb
+            mask = slack > 1e-12
+            if not np.any(mask):
+                return None
+            x[mask] += diff * (slack[mask] / slack[mask].sum())
+        x = np.clip(x, lb, ub)
+    else:
+        if abs(float(x.sum()) - total_outstanding) > 1e-2 * max(abs(total_outstanding), 1.0):
+            return None
+
+    if abs(float(x.sum()) - total_outstanding) > 1e-4:
+        return None
+
+    s = np.round(x, 2)
+    adj = round(float(total_outstanding), 2) - float(s.sum())
+    if abs(adj) >= 0.005:
+        for j in range(n - 1, -1, -1):
+            newv = float(np.clip(round(s[j] + adj, 2), lb[j], ub[j]))
+            adj -= newv - s[j]
+            s[j] = newv
+            if abs(adj) < 0.005:
+                break
+    if abs(float(s.sum()) - round(float(total_outstanding), 2)) > 0.05:
+        return None
+    return s
 
 
 class EMIPlannerModel:
@@ -18,17 +75,17 @@ class EMIPlannerModel:
         try:
             self.model1 = pickle.load(open("model1_lgb.pkl", "rb"))
             self.model1_features = pickle.load(open("model1_features.pkl", "rb"))
-        except:
+        except Exception:
             self.model1 = None
-            print("Warning: Model1 not loaded")
+            print("Warning: Model1 not loaded", file=sys.stderr)
         
         try:
             self.model2 = pickle.load(open("model2_catboost.pkl", "rb"))
             self.model2_features = pickle.load(open("model2_features.pkl", "rb"))
             self.model2_cat_features = pickle.load(open("model2_cat_features.pkl", "rb"))
-        except:
+        except Exception:
             self.model2 = None
-            print("Warning: Model2 not loaded")
+            print("Warning: Model2 not loaded", file=sys.stderr)
     
     
     def predict_income(self, farmer_data):
@@ -67,7 +124,12 @@ class EMIPlannerModel:
             return None
         
         try:
-            input_df = pd.DataFrame([farmer_data])
+            row = dict(farmer_data)
+            if self.model2_cat_features:
+                for c in self.model2_cat_features:
+                    if c in row:
+                        row[c] = str(row[c])
+            input_df = pd.DataFrame([row])
             risk_probability = self.model2.predict_proba(input_df)[0, 1]
             return risk_probability
         except Exception as e:
@@ -181,34 +243,29 @@ class EMIPlannerModel:
         else:
             adjusted_max_pct = [max_emi_pct] * num_months
         
-        c = np.zeros(num_months)
-        
-        A_eq = np.ones((1, num_months))
-        b_eq = np.array([total_outstanding])
-        
-        bounds = []
-        for i, income in enumerate(predicted_incomes):
-            max_capacity = max(min_emi, income * adjusted_max_pct[i])
-            bounds.append((min_emi, max_capacity))
-        
-        res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
-        
-        if res.success:
-            schedule = np.round(res.x, 2)
-            
-            # Create schedule DataFrame
+        lower = []
+        upper = []
+        incomes = np.asarray(predicted_incomes, dtype=float)
+        for i, income in enumerate(incomes):
+            max_capacity = max(min_emi, float(income) * adjusted_max_pct[i])
+            lower.append(float(min_emi))
+            upper.append(float(max_capacity))
+
+        schedule = _allocate_emi_close_to_flat(float(total_outstanding), lower, upper)
+
+        if schedule is not None:
+            safe_income = np.maximum(incomes, 1.0)
+            ratios = (schedule / safe_income * 100.0)
             schedule_df = pd.DataFrame({
                 'month': range(1, num_months + 1),
-                'predicted_income': predicted_incomes,
+                'predicted_income': incomes,
                 'optimized_emi': schedule,
-                'emi_to_income_ratio': (schedule / predicted_incomes * 100).round(2),
-                'remaining_income': (predicted_incomes - schedule).round(2),
+                'emi_to_income_ratio': np.round(ratios, 2),
+                'remaining_income': np.round(incomes - schedule, 2),
                 'risk_score': risk_scores if risk_scores is not None else [0] * num_months
             })
-            
-            return "Optimal", np.round(schedule, 2), schedule_df
-        else:
-            return "Infeasible", None, None
+            return "Optimal", schedule, schedule_df
+        return "Infeasible", None, None
     
     
     def generate_comprehensive_report(self, farmer_info, loan_amount, 
@@ -236,7 +293,8 @@ class EMIPlannerModel:
                 'rainfall_deviation_pct': ((row['rainfall_mm'] - 100) / 100) * 100,
                 'ndvi_stress_months': 3 if row['ndvi_value'] < 0.4 else 0,
                 'drought_months_12m': 3 if row['rainfall_mm'] < 60 else 0,
-                'kharif_msp_diff': row['price_inr'] - 1500
+                'kharif_msp_diff': row['price_inr'] - 1500,
+                'net_income': float(row['predicted_income_inr']),
             }
             risk_score = self.predict_default_risk(risk_data) or np.random.uniform(0.1, 0.8)
             risk_scores.append(risk_score * 100)  # Convert to 0-100 scale

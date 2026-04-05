@@ -22,10 +22,14 @@ df['drought_months_12m'] = df.groupby('farmer_id')['is_drought'].transform(lambd
 df['rolling_kharif_price'] = df.groupby('farmer_id')['kharif_mandi_price'].transform(lambda x: x.rolling(12, min_periods=1).mean())
 df['kharif_msp_diff'] = df['kharif_mandi_price'] - df['rolling_kharif_price']
 
+# Same monthly net income definition as model1.py (used at inference from model1 prediction)
+df['net_income'] = df['monthly_inflow_inr'] - df['monthly_outflow_inr']
+
 df = df.dropna().reset_index(drop=True)
 
-features = ['state', 'district', 'primary_kharif_crop', 'irrigation_type', 
-            'rainfall_deviation_pct', 'ndvi_stress_months', 'drought_months_12m', 'kharif_msp_diff']
+features = ['state', 'district', 'primary_kharif_crop', 'irrigation_type',
+            'rainfall_deviation_pct', 'ndvi_stress_months', 'drought_months_12m', 'kharif_msp_diff',
+            'net_income']
 
 target = 'default_within_12m'
 
